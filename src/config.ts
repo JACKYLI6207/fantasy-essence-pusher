@@ -40,6 +40,16 @@ export const TWIN_LANE = FRONT_EXIT.halfWidth;
 /** 吐金球龍頭：相對球道中心（由朝內一格再朝外一格＝回球道中心）。 */
 export const TWIN_DRAGON_LEFT = -TWIN_LANE;
 export const TWIN_DRAGON_RIGHT = TWIN_LANE;
+/** 下層左右對稱旋轉橫槓（影響綠／金球走向）。 */
+export const SPIN_BARS = {
+  x: 2.75,
+  y: 7.05,
+  z: .25,
+  halfLength: .95,
+  halfThick: .09,
+  halfDepth: .22,
+  angularSpeed: 2.15,
+} as const;
 export function twinDragonX(lane: 'left'|'right'|undefined) {
   return lane==='right'?TWIN_DRAGON_RIGHT:lane==='left'?TWIN_DRAGON_LEFT:0;
 }

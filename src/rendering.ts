@@ -1,4 +1,4 @@
-import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, OUTLETS, SPLITTER, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, type PrizeKind } from './config.ts';
+import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, OUTLETS, SPLITTER, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, SPIN_BARS, type PrizeKind } from './config.ts';
 import type { CoinPusher } from './physics.ts';
 import {isCascadeGame,isWideGame,type ActiveGame} from './dual-pusher.ts';
 import {loadSlotArtwork,renderSlot,renderCabinetCelebration} from './slot-rendering.ts';
@@ -64,6 +64,31 @@ function drawTrackGates(game:CoinPusher,lane:number,cx:number,lightBase:number,p
    ctx.restore();
  }
 }
+function drawSpinBars(game:CoinPusher,cx:number){
+ if(!game.centerDecor)return;
+ const halfPx=SPIN_BARS.halfLength*87;
+ const thick=Math.max(10,SPIN_BARS.halfThick*87*2);
+ const angle=game.spinnerAngle;
+ for(const sign of [-1,1] as const){
+  const p=project(sign*SPIN_BARS.x,SPIN_BARS.y,SPIN_BARS.z,cx);
+  ctx.save();
+  ctx.translate(p.x,p.y);
+  ctx.rotate(sign*angle);
+  // 金銅橫槓
+  const g=ctx.createLinearGradient(0,-thick/2,0,thick/2);
+  g.addColorStop(0,'#5a4420');g.addColorStop(.35,'#e8d090');g.addColorStop(.65,'#b8964e');g.addColorStop(1,'#3a2c14');
+  ctx.fillStyle=g;
+  ctx.beginPath();ctx.roundRect(-halfPx,-thick/2,halfPx*2,thick,thick/2);ctx.fill();
+  ctx.strokeStyle='rgba(255,230,160,0.55)';ctx.lineWidth=1.5;
+  ctx.stroke();
+  // 軸心
+  ctx.fillStyle='#1a1510';
+  ctx.beginPath();ctx.arc(0,0,4.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#c2a764';
+  ctx.beginPath();ctx.arc(0,0,2.2,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+ }
+}
 function drawTrackDragon(game:CoinPusher,dragonX:number,cx:number,side:'left'|'right',pipeBase=dragonX){
  const goldOutlet=project(dragonX,OUTLETS.dragon.y,OUTLETS.dragon.z,cx);
  for(const [outlet,flip,last] of [[OUTLETS.leftPipe,true,game.lastLeftEject],[OUTLETS.pipe,false,game.lastRightEject]] as const) {
@@ -118,8 +143,10 @@ function paintCabinet(game:CoinPusher,opts:{clear?:boolean;cropTop?:number}={}){
  if(twin){
   drawTrackGates(game,-TWIN_LANE,cx,0);
   drawTrackGates(game,TWIN_LANE,cx,7);
-  if(game.centerDecor)drawTrackDragon(game,0,cx,'left',0);
-  else{
+  if(game.centerDecor){
+   drawSpinBars(game,cx);
+   drawTrackDragon(game,0,cx,'left',0);
+  }else{
    drawTrackDragon(game,TWIN_DRAGON_LEFT,cx,'left',-TWIN_LANE);
    drawTrackDragon(game,TWIN_DRAGON_RIGHT,cx,'right',TWIN_LANE);
   }

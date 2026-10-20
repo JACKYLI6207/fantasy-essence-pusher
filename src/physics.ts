@@ -2,7 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { SlotMachine } from './slot.ts';
 import {createInitialLayout} from './initial-layout.ts';
 import {PlayerWallet} from './wallet.ts';
-import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, FRONT_EXIT, prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex, twinDragonX, type ExitZone } from './config.ts';
+import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, FRONT_EXIT, SPIN_BARS, prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex, twinDragonX, type ExitZone } from './config.ts';
 
 export type Coin = { body: RAPIER.RigidBody; entered: boolean; age: number; lowestY: number; stalledFor: number; exitZone: ExitZone | null; kind:'green'|'gold'; source:'player'|'bonus'|'bed'; slotChecked:boolean };
 export type CoinPusherOptions = {
@@ -67,6 +67,9 @@ export class CoinPusher {
   lastGoldEjectLane:'left'|'right'='left';
   outletColliders: RAPIER.Collider[] = [];
   splitterCollider!:RAPIER.Collider;
+  /** 下層左右旋轉橫槓（kinematic） */
+  spinnerBodies: RAPIER.RigidBody[] = [];
+  get spinnerAngle(){return this.centerDecor?this.time*SPIN_BARS.angularSpeed:0;}
   private launchRandom:()=>number;
   private layoutRandom:()=>number;
   constructor(launchRandom:()=>number=Math.random,layoutRandom:()=>number=Math.random,wallet?:PlayerWallet,opts:CoinPusherOptions={}) {
@@ -110,6 +113,22 @@ export class CoinPusher {
     this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.5).setTranslation(cx,d.y+.2,d.z)));
     for(const ox of [-.43,.43]) this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.23).setTranslation(cx+ox,d.y-.2,d.z)));
   }
+  private addSpinBars() {
+    if(!this.centerDecor)return;
+    this.spinnerBodies=[];
+    for(const sign of [-1,1] as const){
+      const body=this.world.createRigidBody(
+        RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(sign*SPIN_BARS.x,SPIN_BARS.y,SPIN_BARS.z)
+      );
+      this.world.createCollider(
+        RAPIER.ColliderDesc.cuboid(SPIN_BARS.halfLength,SPIN_BARS.halfThick,SPIN_BARS.halfDepth)
+          .setFriction(.04).setRestitution(.42)
+          .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min),
+        body
+      );
+      this.spinnerBodies.push(body);
+    }
+  }
   private addTrack(cx:number, dragonX:number|null=cx) {
     // 與單機相同淨寬：綠珠(r=0.25)／金球(r=0.375)皆可過針陣與七格
     this.box(cx-2.35,5.7,.85,1.45,4.3,.08);this.box(cx+2.35,5.7,.85,1.45,4.3,.08);
@@ -136,7 +155,7 @@ export class CoinPusher {
     this.dropX=0;this.dropXLeft=-TWIN_LANE;this.dropXRight=TWIN_LANE;this.activeDropLane='left';this.pushZ=1.5;
     this.bonusSpawned=0;this.pendingBonuses=[];this.slotLights=Array(14).fill(-1000);this.lastGreenEject=-1000;this.lastGoldEject=-1000;
     this.lastLeftEject=-1000;this.lastRightEject=-1000;this.nextEssenceSide='left';this.lastGoldEjectLane='left';
-    this.outletColliders=[];
+    this.outletColliders=[];this.spinnerBodies=[];
     if(this.ownsWallet)this.gold=CONFIG.startingGold;
     this.earnedGold=0;this.autoDrop=false;
     this.slot.reset();this.slotB.reset();
@@ -154,6 +173,7 @@ export class CoinPusher {
         this.addTrack(-TWIN_LANE,null);
         this.addTrack(TWIN_LANE,null);
         this.addDragon(0);
+        this.addSpinBars();
       }else{
         this.addTrack(-TWIN_LANE,TWIN_DRAGON_LEFT);
         this.addTrack(TWIN_LANE,TWIN_DRAGON_RIGHT);
@@ -196,6 +216,14 @@ export class CoinPusher {
     if(this.autoDrop)this.drop();
     this.pushZ=1.5+(1-Math.cos(this.time*CONFIG.pusherAngularSpeed))*.58;
     this.pusher.setNextKinematicTranslation({x:0,y:.35,z:this.pushZ-2.5});
+    // 左右橫槓鏡像旋轉（對齊對稱）
+    if(this.spinnerBodies.length){
+      const a=this.spinnerAngle,half=a*.5,s=Math.sin(half),c=Math.cos(half);
+      for(let i=0;i<this.spinnerBodies.length;i++){
+        const z=i===0?s:-s;
+        this.spinnerBodies[i].setNextKinematicRotation({x:0,y:0,z,w:c});
+      }
+    }
     this.world.step();
     this.coins=this.coins.filter(coin=> {
       coin.age+=stepDt;
