@@ -2,7 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { SlotMachine } from './slot.ts';
 import {createInitialLayout} from './initial-layout.ts';
 import {PlayerWallet} from './wallet.ts';
-import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex, type ExitZone } from './config.ts';
+import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, FRONT_EXIT, prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex, type ExitZone } from './config.ts';
 
 export type Coin = { body: RAPIER.RigidBody; entered: boolean; age: number; lowestY: number; stalledFor: number; exitZone: ExitZone | null; kind:'green'|'gold'; source:'player'|'bonus'|'bed'; slotChecked:boolean };
 export type CoinPusherOptions = { widthScale?: number; dualSlots?: boolean };
@@ -59,9 +59,9 @@ export class CoinPusher {
     this.widthScale=opts.widthScale??1;
     this.twinTracks=this.widthScale>1;
     this.dualSlots=opts.dualSlots??this.twinTracks;
-    // 下方幣池仍兩倍寬；上半球道用雙份原尺寸，不拉寬單道
-    this.halfWidth=3.65*this.widthScale;
-    this.rewardHalfWidth=1.825;
+    // 下方幣池涵蓋左右兩道；上半球道各為原尺寸（半寬 3.65）
+    this.halfWidth=this.twinTracks?TWIN_LANE+FRONT_EXIT.halfWidth:FRONT_EXIT.halfWidth;
+    this.rewardHalfWidth=FRONT_EXIT.rewardHalfWidth;
     this.dropAmp=3.15;
     this.wallet=wallet??new PlayerWallet();this.ownsWallet=!wallet;
     this.launchRandom=launchRandom;this.layoutRandom=layoutRandom;this.reset();
@@ -84,6 +84,8 @@ export class CoinPusher {
     for(const ox of [-.43,.43]) this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.23).setTranslation(cx+ox,d.y-.2,d.z)));
   }
   private addTrack(cx:number) {
+    // 每道獨立背板與側牆，維持與單機相同淨寬（綠珠／金球皆可通過針陣與七格）
+    this.box(cx,5,-.18,3.8,5,.08);
     this.box(cx-2.35,5.7,.85,1.45,4.3,.08);this.box(cx+2.35,5.7,.85,1.45,4.3,.08);
     for(let i=1;i<7;i++) this.box(cx-3.65+i*(7.3/7),2.45,.3,.035,.4,.45);
     for(const peg of PEGS) {
@@ -112,18 +114,21 @@ export class CoinPusher {
     if(this.ownsWallet)this.gold=CONFIG.startingGold;
     this.earnedGold=0;this.autoDrop=false;
     this.slot.reset();this.slotB.reset();
-    // 下方共用幣池（維持兩倍寬）
+    // 下方共用幣池
     this.box(0,-.22,3.15,hw,.22,3.65);
     const points:number[]=[];
     for(const y of [0,SPLITTER.height])for(const [x,z] of [[0,-SPLITTER.halfDepth],[-SPLITTER.halfWidth,SPLITTER.halfDepth],[SPLITTER.halfWidth,SPLITTER.halfDepth]])points.push(x,y,z);
     this.splitterCollider=this.world.createCollider(RAPIER.ColliderDesc.convexHull(new Float32Array(points))!
       .setTranslation(SPLITTER.x,0,SPLITTER.z).setFriction(.05).setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min).setRestitution(.08));
-    this.box(0,5,-.18,hw+.15,5,.08);
+    if(!this.twinTracks)this.box(0,5,-.18,hw+.15,5,.08);
     this.box(-hw-.15,5,.2,.12,5,.5);this.box(hw+.15,5,.2,.12,5,.5);
     this.box(-hw-.12,.5,3.5,.12,2.5,4.2);this.box(hw+.12,.5,3.5,.12,2.5,4.2);
     if(this.twinTracks){
       this.addTrack(-TWIN_LANE);
       this.addTrack(TWIN_LANE);
+      // 封閉兩道之間的縫，避免出現第三條窄球道
+      const midGap=TWIN_LANE-FRONT_EXIT.halfWidth;
+      if(midGap>0.05)this.box(0,5.7,.85,Math.max(0.2,midGap*0.9),4.3,.08);
     }else{
       this.addTrack(0);
     }
