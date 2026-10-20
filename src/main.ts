@@ -44,10 +44,10 @@ function syncTimeScaleUI(){
  const input=$<HTMLInputElement>('time-scale'),slider=$<HTMLInputElement>('time-scale-slider');
  if(document.activeElement!==input)input.value=String(scale);
  if(document.activeElement!==slider){slider.value=String(scaleToSlider(scale));slider.setAttribute('aria-valuetext',label);}
- for(const button of $<HTMLDivElement>('time-scale-presets').querySelectorAll<HTMLButtonElement>('.speed-preset')){
+ Array.from($<HTMLDivElement>('time-scale-presets').querySelectorAll<HTMLButtonElement>('.speed-preset')).forEach(button=>{
   const preset=Number(button.dataset.scale);
   button.setAttribute('aria-pressed',String(isPresetScale(scale,preset)));
- }
+ });
  $('time-scale-hint').textContent=scale===1?'1× 即時 · 物理、SLOT、自動投入同步加速':`${label} · 遊戲時間加速中（可隨時調整）`;
 }
 function applyTimeScaleFromInput(){commitTimeScale(Number($<HTMLInputElement>('time-scale').value));}
