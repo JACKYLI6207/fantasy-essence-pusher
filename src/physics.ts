@@ -2,7 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { SlotMachine } from './slot.ts';
 import {createInitialLayout} from './initial-layout.ts';
 import {PlayerWallet} from './wallet.ts';
-import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, FRONT_EXIT, SPIN_BARS, prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex, twinDragonX, type ExitZone } from './config.ts';
+import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, FRONT_EXIT, SPIN_BARS, prizeSlotIndex, classifyHarvestExit, twinPrizeSlotIndex, twinDragonX, type ExitZone } from './config.ts';
 
 export type Coin = { body: RAPIER.RigidBody; entered: boolean; age: number; lowestY: number; stalledFor: number; exitZone: ExitZone | null; kind:'green'|'gold'; source:'player'|'bonus'|'bed'; slotChecked:boolean };
 export type CoinPusherOptions = {
@@ -50,6 +50,10 @@ export class CoinPusher {
   dropX = 0;
   dropXLeft = 0;
   dropXRight = 0;
+  /** 收穫籃中心 X（左右移動） */
+  harvestX = 0;
+  readonly harvestAmp:number;
+  readonly rewardCatchHalf:number;
   activeDropLane:'left'|'right'='left';
   pushZ = 0;
   speed = 0.9;
@@ -67,9 +71,9 @@ export class CoinPusher {
   lastGoldEjectLane:'left'|'right'='left';
   outletColliders: RAPIER.Collider[] = [];
   splitterCollider!:RAPIER.Collider;
-  /** 下層左右旋轉橫槓（kinematic） */
+  /** 旋轉橫槓（kinematic） */
   spinnerBodies: RAPIER.RigidBody[] = [];
-  get spinnerAngle(){return this.centerDecor?this.time*SPIN_BARS.angularSpeed:0;}
+  get spinnerAngle(){return this.spinnerBodies.length?this.time*SPIN_BARS.angularSpeed:0;}
   private launchRandom:()=>number;
   private layoutRandom:()=>number;
   constructor(launchRandom:()=>number=Math.random,layoutRandom:()=>number=Math.random,wallet?:PlayerWallet,opts:CoinPusherOptions={}) {
@@ -82,7 +86,10 @@ export class CoinPusher {
     // 雙機幣床要比兩道並排再外擴，才能填滿拉伸機櫃左右視覺區（紅框空角）
     this.halfWidth=this.twinTracks?TWIN_LANE+FRONT_EXIT.halfWidth+1.35:FRONT_EXIT.halfWidth;
     this.rewardHalfWidth=FRONT_EXIT.rewardHalfWidth;
-    // 接珠層不摆動；其餘出幣口行程跟著幣床半寬
+    // 收穫籃接珠半寬；擺幅讓籃可掃過床面但不貼牆
+    this.rewardCatchHalf=FRONT_EXIT.rewardHalfWidth*(this.twinTracks?1.2:1);
+    this.harvestAmp=Math.max(.4,this.halfWidth-this.rewardCatchHalf-.35);
+    // 接珠層不摆動綠幣口；其餘出幣口行程跟著幣床半寬
     this.dropAmp=this.receiveOnly?0:3.15*(this.halfWidth/FRONT_EXIT.halfWidth);
     this.wallet=wallet??new PlayerWallet();this.ownsWallet=!wallet;
     this.launchRandom=launchRandom;this.layoutRandom=layoutRandom;this.reset();
@@ -113,12 +120,14 @@ export class CoinPusher {
     this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.5).setTranslation(cx,d.y+.2,d.z)));
     for(const ox of [-.43,.43]) this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.23).setTranslation(cx+ox,d.y-.2,d.z)));
   }
-  private addSpinBars() {
-    if(!this.centerDecor)return;
+  private addSpinBars(mode:'sides'|'center'|'both') {
     this.spinnerBodies=[];
-    for(const sign of [-1,1] as const){
+    const xs:number[]=[];
+    if(mode==='sides'||mode==='both'){xs.push(-SPIN_BARS.x,SPIN_BARS.x);}
+    if(mode==='center'||mode==='both')xs.push(0);
+    for(const x of xs){
       const body=this.world.createRigidBody(
-        RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(sign*SPIN_BARS.x,SPIN_BARS.y,SPIN_BARS.z)
+        RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(x,SPIN_BARS.y,SPIN_BARS.z)
       );
       this.world.createCollider(
         RAPIER.ColliderDesc.cuboid(SPIN_BARS.halfLength,SPIN_BARS.halfThick,SPIN_BARS.halfDepth)
@@ -173,10 +182,12 @@ export class CoinPusher {
         this.addTrack(-TWIN_LANE,null);
         this.addTrack(TWIN_LANE,null);
         this.addDragon(0);
-        this.addSpinBars();
+        this.addSpinBars('sides');
       }else{
         this.addTrack(-TWIN_LANE,TWIN_DRAGON_LEFT);
         this.addTrack(TWIN_LANE,TWIN_DRAGON_RIGHT);
+        // 上方雙龍頭正中間加旋轉槓
+        this.addSpinBars('center');
       }
     }else{
       this.addTrack(0);
@@ -211,17 +222,19 @@ export class CoinPusher {
     const stepDt=Math.max(1/240,dt);
     this.world.timestep=stepDt;
     this.time+=stepDt;
-    // 雙命運殿上方綠幣出幣口也只留一個（中央來回）
+    // 綠幣出幣口來回；收穫籃同向但速度一半
     this.dropX=Math.sin(this.time*this.speed)*this.dropAmp;
+    this.harvestX=Math.sin(this.time*this.speed*.5)*this.harvestAmp;
     if(this.autoDrop)this.drop();
     this.pushZ=1.5+(1-Math.cos(this.time*CONFIG.pusherAngularSpeed))*.58;
     this.pusher.setNextKinematicTranslation({x:0,y:.35,z:this.pushZ-2.5});
-    // 左右橫槓鏡像旋轉（對齊對稱）
+    // 橫槓旋轉：左右鏡像，中央同相
     if(this.spinnerBodies.length){
       const a=this.spinnerAngle,half=a*.5,s=Math.sin(half),c=Math.cos(half);
-      for(let i=0;i<this.spinnerBodies.length;i++){
-        const z=i===0?s:-s;
-        this.spinnerBodies[i].setNextKinematicRotation({x:0,y:0,z,w:c});
+      for(const body of this.spinnerBodies){
+        const x=body.translation().x;
+        const z=x<0?s:x>0?-s:s;
+        body.setNextKinematicRotation({x:0,y:0,z,w:c});
       }
     }
     this.world.step();
@@ -258,7 +271,8 @@ export class CoinPusher {
         }
       }
       if(coin.entered && coin.exitZone===null && p.y<0 && p.z>6.65) {
-        coin.exitZone=this.twinTracks?classifyTwinFrontExit(p.x,this.halfWidth):classifyFrontExit(p.x);
+        // 只有被移動中的收穫籃接到才算 reward；其餘回收（上層→落層）
+        coin.exitZone=classifyHarvestExit(p.x,this.harvestX,this.rewardCatchHalf);
       }
       const collectionY=coin.exitZone==='recycle'?-6.1:-1.8;
       if(p.y<collectionY || (!coin.entered && coin.age>180)) {

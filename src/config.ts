@@ -59,13 +59,14 @@ export type ExitZone = 'reward' | 'recycle';
 export function classifyFrontExit(x: number, rewardHalfWidth = FRONT_EXIT.rewardHalfWidth): ExitZone {
   return Math.abs(x) < rewardHalfWidth ? 'reward' : 'recycle';
 }
+/** 相對移動中的收穫籃中心判定：接到＝reward，沒接到＝recycle（上層才落層）。 */
+export function classifyHarvestExit(x: number, harvestX: number, catchHalfWidth: number): ExitZone {
+  return Math.abs(x - harvestX) < catchHalfWidth ? 'reward' : 'recycle';
+}
 export function twinLaneCenter(x: number) {
   return x < 0 ? -TWIN_LANE : TWIN_LANE;
 }
-/**
- * 連體寬機共用收穫籃：中央一半為獎勵（入箱），左右外側為回收坑。
- * （勿用左右球道中心判定，否則正中收穫籃會被誤判成回收。）
- */
+/** @deprecated 改用 classifyHarvestExit（收穫籃可移動） */
 export function classifyTwinFrontExit(x: number, bedHalfWidth = TWIN_LANE + FRONT_EXIT.halfWidth): ExitZone {
   return Math.abs(x) < bedHalfWidth * 0.5 ? 'reward' : 'recycle';
 }
