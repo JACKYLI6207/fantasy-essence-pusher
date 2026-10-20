@@ -17,6 +17,15 @@ export const MACHINES = [
     entryCost: 1,
     layout: 'dual' as const,
   },
+  {
+    id: 'cascade-fate',
+    name: '雙層命運殿',
+    tag: '奇幻冒險 · 上下堆疊 × 回收落層',
+    description: '上層如雙命運殿；左右回收坑的綠／金球落入下層接珠機。下層無移動綠幣出幣口。',
+    image: 'machine.png',
+    entryCost: 1,
+    layout: 'cascade' as const,
+  },
 ] as const;
 
 export type MachineId = (typeof MACHINES)[number]['id'];

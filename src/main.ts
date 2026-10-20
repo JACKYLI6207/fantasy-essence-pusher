@@ -6,7 +6,7 @@ import {marqueeMessage} from './celebration.ts';
 import {PlayerWallet,type WalletStorage} from './wallet.ts';
 import {ArcadeSession} from './arcade-session.ts';
 import {getMachine,MACHINES,type MachineId} from './machines.ts';
-import {gameCanDrop,gameCoinCount,isWideGame} from './dual-pusher.ts';
+import {gameCanDrop,gameCoinCount,isCascadeGame,isWideGame} from './dual-pusher.ts';
 import {formatTimeScale,getGameTimeScale,isPresetScale,MAX_ACCUMULATED_GAME_TIME,planPhysicsFrame,scaleToSlider,setGameTimeScale,sliderToScale,TIME_SCALE_PRESETS,UI_UPDATE_MS} from './time-scale.ts';
 import './style.css';
 
@@ -24,23 +24,29 @@ function syncWallet(){
 function updateUI(){
  syncWallet();const game=session.game;if(!game)return;
  const wide=isWideGame(game);
+ const cascade=isCascadeGame(game);
  $('dropped').textContent=String(game.dropped);$('won').textContent=String(game.won);$('recycled').textContent=String(game.recycled);
  $<HTMLButtonElement>('drop').disabled=session.leaveRequested||!gameCanDrop(game);
  const auto=$<HTMLButtonElement>('auto-drop');auto.disabled=session.leaveRequested||game.gold<CONFIG.essenceCost;
  auto.setAttribute('aria-pressed',String(game.autoDrop));auto.textContent=game.autoDrop?'停止自動投入':'開啟自動投入';
  $('auto-status').textContent=game.gold<CONFIG.essenceCost?'金幣不足，已停止投入；精華入箱可回補金幣':game.autoDrop
-  ?(wide?'寬機自動投入中 · 每顆 1 金幣':'自動投入中 · 每秒最多 2 顆 · 每顆 1 金幣')
-  :(wide?'1 金幣投入 1 精華 · 連體幣池 · 雙 SLOT':'1 金幣投入 1 精華 · 精華入箱返還 1 金幣');
+  ?(cascade?'雙層自動投入中 · 上層投幣':wide?'寬機自動投入中 · 每顆 1 金幣':'自動投入中 · 每秒最多 2 顆 · 每顆 1 金幣')
+  :(cascade?'上層投幣 · 左右回收落入下層 · 下層無移動出幣口':wide?'1 金幣投入 1 精華 · 連體幣池 · 雙 SLOT':'1 金幣投入 1 精華 · 精華入箱返還 1 金幣');
  const message=marqueeMessage(game.slot,wide);if($('machine-announcement').textContent!==message)$('machine-announcement').textContent=message;
  const aSpin=game.slot.phase==='spinning'||game.slot.remaining>0||game.slot.queue>0;
  const bSpin=wide&&(game.slotB.phase==='spinning'||game.slotB.remaining>0||game.slotB.queue>0);
- $('slot-status').textContent=wide
+ const lowA=cascade&&(game.lower.slot.phase==='spinning'||game.lower.slot.remaining>0||game.lower.slot.queue>0);
+ const lowB=cascade&&(game.lower.slotB.phase==='spinning'||game.lower.slotB.remaining>0||game.lower.slotB.queue>0);
+ $('slot-status').textContent=cascade
+  ?(aSpin||bSpin||lowA||lowB?`上下層 SLOT${aSpin||bSpin?' · 上層運轉':''}${lowA||lowB?' · 下層運轉':''}`:'上下層龍珠入箱各自啟動 SLOT')
+  :wide
   ?(aSpin||bSpin?`雙 SLOT${aSpin?' · 左運轉中':''}${bSpin?' · 右運轉中':''}`:'龍珠入箱交替啟動左右 SLOT')
   :(game.slot.remaining>0?`SLOT 派珠中 · 尚餘 ${game.slot.remaining} 顆${game.slot.queue>0?` · 待轉 ${game.slot.queue} 次`:''}`:game.slot.phase==='spinning'?`SLOT 旋轉中${game.slot.queue>0?` · 待轉 ${game.slot.queue} 次`:''}`:'龍珠落入中央寶箱可啟動 SLOT');
  const scale=getGameTimeScale();
  const speedNote=scale===1?'':` · 倍速 ${formatTimeScale(scale)}`;
  const coins=gameCoinCount(game);
- $('status').textContent=`運作中 · ${coins} 顆精華${wide?'（連體寬機）':''} · ${coins>=game.maxCoins?'珠床已滿，請等待回收':'點擊或空白鍵投幣'}${speedNote}`;
+ const cap=cascade?game.upper.maxCoins+game.lower.maxCoins:game.maxCoins;
+ $('status').textContent=`運作中 · ${coins} 顆精華${cascade?'（雙層堆疊）':wide?'（連體寬機）':''} · ${coins>=cap?'珠床已滿，請等待回收':'點擊或空白鍵投幣'}${speedNote}`;
  syncTimeScaleUI();
 }
 function commitTimeScale(value:number){
@@ -64,7 +70,7 @@ function applyTimeScaleFromSlider(){commitTimeScale(sliderToScale(Number($<HTMLI
 function showLobby(){
  $('lobby-screen').hidden=false;$('machine-screen').hidden=true;$('lobby-wallet').hidden=false;$('machine-nav').hidden=true;
  $('page-title').textContent='冒險大廳';$('page-subtitle').textContent='選擇一台機台，展開你的下一段冒險。';document.title='冒險大廳 · 秘境金庫';
- setDisplayLayout(false);syncWallet();resetClock();
+ setDisplayLayout(false,false);syncWallet();resetClock();
 }
 function ensureReady(){
  if(!readyPromise)readyPromise=Promise.all([RAPIER.init(),loadArtwork()]).then(()=>{}).catch(error=>{readyPromise=undefined;throw error;});
@@ -78,10 +84,10 @@ async function enterMachine(id:MachineId){
  $('lobby-error').textContent='';
  try{
   await ensureReady();if(!session.enter(id))return;
-  setDisplayLayout(machine.layout==='dual');
+  setDisplayLayout(machine.layout==='dual'||machine.layout==='cascade',machine.layout==='cascade');
   $('lobby-screen').hidden=true;$('machine-screen').hidden=false;$('lobby-wallet').hidden=true;$('machine-nav').hidden=false;
   $('page-title').textContent=machine.name;
-  $('page-subtitle').textContent=machine.layout==='dual'?'連體寬機：幣池互通，雙拉霸，單一出幣與接幣。':'掌握時機，讓精華穿越命運的針陣。';
+  $('page-subtitle').textContent=machine.layout==='cascade'?'上層投幣，左右回收落入下層；下層無移動綠幣出幣口。':machine.layout==='dual'?'連體寬機：幣池互通，雙拉霸，單一出幣與接幣。':'掌握時機，讓精華穿越命運的針陣。';
   document.title=`${machine.name} · 推幣冒險`;
   $<HTMLDetailsElement>('adventure-details').open=false;
   $('loading').style.display='none';resetClock();updateUI();render(session.game!);
@@ -120,16 +126,24 @@ function frame(ms:number){
 }
 function buildLobbyCards(){
  const list=$<HTMLDivElement>('machine-card-list');list.replaceChildren();
+ const badge=(layout:typeof MACHINES[number]['layout'])=>layout==='cascade'?'雙層開放':layout==='dual'?'雙機開放':'開放遊玩';
+ const tags=(layout:typeof MACHINES[number]['layout'])=>layout==='cascade'?'上下雙 SLOT':layout==='dual'?'雙 SLOT':'龍珠 SLOT';
+ const pool=(layout:typeof MACHINES[number]['layout'])=>layout==='cascade'?'回收落層':layout==='dual'?'連體幣池':'隨機盤面';
+ const rule=(layout:typeof MACHINES[number]['layout'])=>layout==='cascade'
+  ?'上層如雙命運殿；左右回收坑的綠／金球落入下層。下層無移動出幣口。離開時進度清除，金幣保留。'
+  :layout==='dual'?'雙倍寬連體櫃：單一出幣口與接幣口，幣池互通，雙拉霸。離開時進度清除，金幣保留。'
+  :'精華入箱返還金幣。離開時機台進度與未派獎勵清除，已持有金幣保留。';
  MACHINES.forEach((machine,index)=>{
   const article=document.createElement('article');article.className='machine-card';
   article.innerHTML=`
-    <div class="machine-card-art"><img src="${new URL(`./assets/${machine.image}`,document.baseURI).href}" alt="${machine.name}預覽"><span class="machine-number">MACHINE ${String(index+1).padStart(2,'0')}</span><span class="open-badge">${machine.layout==='dual'?'雙機開放':'開放遊玩'}</span></div>
-    <div class="machine-card-info"><span class="eyebrow">${machine.tag}</span><h3>${machine.name}</h3><p>${machine.description}</p><div class="machine-tags"><span>1 金幣 / 精華</span><span>${machine.layout==='dual'?'雙 SLOT':'龍珠 SLOT'}</span><span>${machine.layout==='dual'?'連體幣池':'隨機盤面'}</span></div><div class="machine-card-rule"><span>每次入場，都是新的盤面</span><p>${machine.layout==='dual'?'雙倍寬連體櫃：單一出幣口與接幣口，幣池互通，雙拉霸。離開時進度清除，金幣保留。':'精華入箱返還金幣。離開時機台進度與未派獎勵清除，已持有金幣保留。'}</p></div><button type="button" data-enter-machine="${machine.id}">進入機台 →</button></div>`;
+    <div class="machine-card-art"><img src="${new URL(`./assets/${machine.image}`,document.baseURI).href}" alt="${machine.name}預覽"><span class="machine-number">MACHINE ${String(index+1).padStart(2,'0')}</span><span class="open-badge">${badge(machine.layout)}</span></div>
+    <div class="machine-card-info"><span class="eyebrow">${machine.tag}</span><h3>${machine.name}</h3><p>${machine.description}</p><div class="machine-tags"><span>1 金幣 / 精華</span><span>${tags(machine.layout)}</span><span>${pool(machine.layout)}</span></div><div class="machine-card-rule"><span>每次入場，都是新的盤面</span><p>${rule(machine.layout)}</p></div><button type="button" data-enter-machine="${machine.id}">進入機台 →</button></div>`;
   list.append(article);
  });
  list.querySelectorAll<HTMLButtonElement>('[data-enter-machine]').forEach(button=>{
   button.addEventListener('click',()=>void enterMachine(button.dataset.enterMachine as MachineId));
  });
+ $('available-count').textContent=`${String(MACHINES.length).padStart(2,'0')} 台機台開放中`;
 }
 
 for(const preset of TIME_SCALE_PRESETS){

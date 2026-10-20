@@ -5,7 +5,14 @@ import {PlayerWallet} from './wallet.ts';
 import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, FRONT_EXIT, prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex, twinDragonX, type ExitZone } from './config.ts';
 
 export type Coin = { body: RAPIER.RigidBody; entered: boolean; age: number; lowestY: number; stalledFor: number; exitZone: ExitZone | null; kind:'green'|'gold'; source:'player'|'bonus'|'bed'; slotChecked:boolean };
-export type CoinPusherOptions = { widthScale?: number; dualSlots?: boolean };
+export type CoinPusherOptions = {
+  widthScale?: number;
+  dualSlots?: boolean;
+  /** 下層接珠機：無玩家移動出幣口 */
+  receiveOnly?: boolean;
+  /** 左右回收時改交給下層，不計入本機 recycled */
+  onRecycle?: (kind:'green'|'gold', x:number)=>void;
+};
 export type ActiveGame = CoinPusher;
 
 export class CoinPusher {
@@ -17,9 +24,11 @@ export class CoinPusher {
   readonly widthScale:number;
   readonly dualSlots:boolean;
   readonly twinTracks:boolean;
+  readonly receiveOnly:boolean;
   readonly halfWidth:number;
   readonly rewardHalfWidth:number;
   readonly dropAmp:number;
+  private onRecycle?:CoinPusherOptions['onRecycle'];
   get maxCoins(){return Math.round(CONFIG.maxCoins*(this.widthScale>1?1.5:1));}
   private wallet:PlayerWallet;
   private ownsWallet:boolean;
@@ -31,6 +40,8 @@ export class CoinPusher {
   dropped = 0;
   won = 0;
   recycled = 0;
+  /** 回收轉交下層的次數（堆疊機用） */
+  cascaded = 0;
   lastRewardTime = -1000;
   lastDrop = -1000;
   dropX = 0;
@@ -59,13 +70,22 @@ export class CoinPusher {
     this.widthScale=opts.widthScale??1;
     this.twinTracks=this.widthScale>1;
     this.dualSlots=opts.dualSlots??this.twinTracks;
+    this.receiveOnly=!!opts.receiveOnly;
+    this.onRecycle=opts.onRecycle;
     // 雙機幣床要比兩道並排再外擴，才能填滿拉伸機櫃左右視覺區（紅框空角）
     this.halfWidth=this.twinTracks?TWIN_LANE+FRONT_EXIT.halfWidth+1.35:FRONT_EXIT.halfWidth;
     this.rewardHalfWidth=FRONT_EXIT.rewardHalfWidth;
-    // 雙命運殿出幣口左右行程跟著幣床半寬比例放大
-    this.dropAmp=3.15*(this.halfWidth/FRONT_EXIT.halfWidth);
+    // 接珠層不摆動；其餘出幣口行程跟著幣床半寬
+    this.dropAmp=this.receiveOnly?0:3.15*(this.halfWidth/FRONT_EXIT.halfWidth);
     this.wallet=wallet??new PlayerWallet();this.ownsWallet=!wallet;
     this.launchRandom=launchRandom;this.layoutRandom=layoutRandom;this.reset();
+  }
+  /** 上層左右坑掉落的珠，從本機頂部落入針陣；滿台時回傳 false */
+  acceptCascade(kind:'green'|'gold', x:number) {
+    if(this.coins.length>=this.maxCoins)return false;
+    const cx=Math.max(-this.halfWidth+.4,Math.min(this.halfWidth-.4,x));
+    this.makeCoin(cx,9.55,.25,true,kind,'bonus');
+    return true;
   }
 
   private box(x:number,y:number,z:number,hx:number,hy:number,hz:number) {
@@ -106,7 +126,7 @@ export class CoinPusher {
     this.world?.free();
     this.world=new RAPIER.World({x:0,y:-15,z:0});
     this.world.timestep=CONFIG.fixedStep;
-    this.coins=[];this.time=0;this.dropped=0;this.won=0;this.recycled=0;this.lastRewardTime=-1000;this.lastDrop=-1000;this.transferred=0;
+    this.coins=[];this.time=0;this.dropped=0;this.won=0;this.recycled=0;this.cascaded=0;this.lastRewardTime=-1000;this.lastDrop=-1000;this.transferred=0;
     this.dropX=0;this.dropXLeft=-TWIN_LANE;this.dropXRight=TWIN_LANE;this.activeDropLane='left';this.pushZ=1.5;
     this.bonusSpawned=0;this.pendingBonuses=[];this.slotLights=Array(14).fill(-1000);this.lastGreenEject=-1000;this.lastGoldEject=-1000;
     this.lastLeftEject=-1000;this.lastRightEject=-1000;this.nextEssenceSide='left';this.lastGoldEjectLane='left';
@@ -135,6 +155,7 @@ export class CoinPusher {
     for(const p of layout)this.makeCoin(p.x,p.y,p.z);
   }
   drop() {
+    if(this.receiveOnly)return false;
     if(this.gold<CONFIG.essenceCost) {this.autoDrop=false;return false;}
     if(this.time-this.lastDrop+1e-9<CONFIG.dropCooldown || this.coins.length>=this.maxCoins) return false;
     this.lastDrop=this.time;
@@ -145,6 +166,7 @@ export class CoinPusher {
     return true;
   }
   setAutoDrop(enabled:boolean) {
+    if(this.receiveOnly){this.autoDrop=false;return false;}
     this.autoDrop=enabled&&this.gold>=CONFIG.essenceCost;
     if(this.autoDrop)this.drop();
     return this.autoDrop;
@@ -209,6 +231,7 @@ export class CoinPusher {
             }
             else {this.gold+=CONFIG.essenceReturnGold;this.earnedGold+=CONFIG.essenceReturnGold;}
           }
+          else if(this.onRecycle){this.onRecycle(coin.kind,p.x);this.cascaded++;}
           else this.recycled++;
         }
         this.world.removeRigidBody(coin.body);

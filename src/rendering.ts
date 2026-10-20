@@ -1,6 +1,6 @@
 import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, OUTLETS, SPLITTER, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, type PrizeKind } from './config.ts';
 import type { CoinPusher } from './physics.ts';
-import {isWideGame,type ActiveGame} from './dual-pusher.ts';
+import {isCascadeGame,isWideGame,type ActiveGame} from './dual-pusher.ts';
 import {loadSlotArtwork,renderSlot,renderCabinetCelebration} from './slot-rendering.ts';
 
 const canvas=document.getElementById('game') as HTMLCanvasElement;
@@ -12,19 +12,23 @@ gold.src=new URL('./assets/gold-bead.png',document.baseURI).href;gates.src=new U
 splitter.src=new URL('./assets/triangle-splitter.png',document.baseURI).href;
 
 const WIDE_W=2048;
+const CAB_H=1536;
+const STACK_H=CAB_H*2;
 
 export async function loadArtwork(){
  await Promise.all([machine.decode(),atlas.decode(),platform.decode(),bead.decode(),bay.decode(),gold.decode(),gates.decode(),dragon.decode(),pipe.decode(),splitter.decode(),loadSlotArtwork()]);
  setDisplayLayout(false);
 }
 
-export function setDisplayLayout(wide:boolean){
- const w=wide?WIDE_W:1024;
- if(canvas.width!==w||canvas.height!==1536){canvas.width=w;canvas.height=1536;}
+export function setDisplayLayout(wide:boolean,stacked=false){
+ const w=wide||stacked?WIDE_W:1024;
+ const h=stacked?STACK_H:CAB_H;
+ if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
  const host=canvas.parentElement;
  if(host){
-  host.classList.toggle('machine-dual',wide);
-  host.style.aspectRatio=wide?`${WIDE_W} / 1536`:'2 / 3';
+  host.classList.toggle('machine-dual',wide||stacked);
+  host.classList.toggle('machine-stacked',stacked);
+  host.style.aspectRatio=stacked?`${WIDE_W} / ${STACK_H}`:wide?`${WIDE_W} / ${CAB_H}`:'2 / 3';
  }
 }
 
@@ -70,16 +74,16 @@ function drawTrackDragon(game:CoinPusher,dragonX:number,cx:number,side:'left'|'r
  ctx.drawImage(dragon,goldOutlet.x-62,goldOutlet.y-53,124,106);ctx.restore();
 }
 
-function paintCabinet(game:CoinPusher){
+function paintCabinet(game:CoinPusher,opts:{clear?:boolean}={}){
  const wide=game.widthScale>1;
  const twin=game.twinTracks;
  const W=wide?WIDE_W:1024;
  const cx=W/2;
  const {pushZ,coins}=game;
 
- ctx.clearRect(0,0,W,1536);
+ if(opts.clear!==false)ctx.clearRect(0,0,W,CAB_H);
  // 連體櫃美術維持橫向拉伸；上方綠幣出幣口只留中央一個
- ctx.drawImage(machine,0,0,W,1536);
+ ctx.drawImage(machine,0,0,W,CAB_H);
 
  if(twin){
   // 拉霸維持球道中心對齊；龍頭另朝內挪，不跟著動拉霸
@@ -100,7 +104,8 @@ function paintCabinet(game:CoinPusher){
   }
  }
 
- const dp=project(game.dropX,10.1,0,cx);sprite(2,dp.x,dp.y,100,76);
+ // 下層接珠機不畫移動綠幣出幣口
+ if(!game.receiveOnly){const dp=project(game.dropX,10.1,0,cx);sprite(2,dp.x,dp.y,100,76);}
  if(twin){
   drawTrackGates(game,-TWIN_LANE,cx,0);
   drawTrackGates(game,TWIN_LANE,cx,7);
@@ -183,6 +188,13 @@ function paintCabinet(game:CoinPusher){
 }
 
 export function render(game:ActiveGame){
- setDisplayLayout(isWideGame(game));
+ if(isCascadeGame(game)){
+  setDisplayLayout(true,true);
+  ctx.clearRect(0,0,WIDE_W,STACK_H);
+  ctx.save();paintCabinet(game.upper,{clear:false});ctx.restore();
+  ctx.save();ctx.translate(0,CAB_H);paintCabinet(game.lower,{clear:false});ctx.restore();
+  return;
+ }
+ setDisplayLayout(isWideGame(game),false);
  paintCabinet(game);
 }

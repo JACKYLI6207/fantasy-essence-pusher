@@ -1,6 +1,8 @@
-import {CoinPusher,type ActiveGame} from './physics.ts';
+import {CoinPusher} from './physics.ts';
+import {CascadePusher} from './cascade-pusher.ts';
 import {getMachine,MACHINES,type MachineId} from './machines.ts';
 import {PlayerWallet} from './wallet.ts';
+import type {ActiveGame} from './dual-pusher.ts';
 
 export type {ActiveGame};
 
@@ -13,9 +15,11 @@ export class ArcadeSession {
   enter(id:MachineId) {
     if(this.game||!MACHINES.some(m=>m.id===id))return false;
     const machine=getMachine(id);
-    this.game=machine.layout==='dual'
-      ? new CoinPusher(undefined,undefined,this.wallet,{widthScale:2,dualSlots:true})
-      : new CoinPusher(undefined,undefined,this.wallet);
+    this.game=machine.layout==='cascade'
+      ? new CascadePusher(this.wallet)
+      : machine.layout==='dual'
+        ? new CoinPusher(undefined,undefined,this.wallet,{widthScale:2,dualSlots:true})
+        : new CoinPusher(undefined,undefined,this.wallet);
     this.machineId=id;
     return true;
   }
