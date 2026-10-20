@@ -78,21 +78,12 @@ function paintCabinet(game:CoinPusher){
  const {pushZ,coins}=game;
 
  ctx.clearRect(0,0,W,1536);
- if(twin){
-  // 左右各貼一張原尺寸機櫃，保留兩側上方出幣口；中縫柔化避免硬切開
-  ctx.drawImage(machine,0,0,1024,1536,0,0,1024,1536);
-  ctx.drawImage(machine,0,0,1024,1536,1024,0,1024,1536);
-  const seam=ctx.createLinearGradient(992,0,1056,0);
-  seam.addColorStop(0,'rgba(10,18,16,0)');
-  seam.addColorStop(.5,'rgba(12,22,18,0.45)');
-  seam.addColorStop(1,'rgba(10,18,16,0)');
-  ctx.fillStyle=seam;ctx.fillRect(992,0,64,1536);
- }else ctx.drawImage(machine,0,0,1024,1536);
+ // 連體櫃美術維持橫向拉伸（其它版面不動）
+ ctx.drawImage(machine,0,0,W,1536);
 
- if(twin){
-  // 拉霸中心在 offset+512，對齊左右櫃／龍頭中心 512、1536
-  renderSlot(ctx,game,0,game.slot);
-  renderSlot(ctx,game,1024,game.slotB);
+ if(wide){
+  renderSlot(ctx,game,W*0.05,game.slot);
+  renderSlot(ctx,game,W*0.05+900,game.slotB);
  }else renderSlot(ctx,game);
 
  const lanes=twin?[-TWIN_LANE,TWIN_LANE]:[0];
