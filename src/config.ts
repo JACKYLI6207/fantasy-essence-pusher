@@ -24,6 +24,13 @@ export const OUTLETS = {
   leftGreenSpawn: {x:-2.8,y:1.55,z:2.75},
 };
 export const PRIZE_SLOTS = ['none','green','none','gold','none','green','none'] as const;
+/** 雙命運殿：左右金球判定各朝機台中間移一格。 */
+export const PRIZE_SLOTS_LEFT = ['none','green','none','none','gold','green','none'] as const;
+export const PRIZE_SLOTS_RIGHT = ['none','green','gold','none','none','green','none'] as const;
+export type PrizeKind = (typeof PRIZE_SLOTS)[number];
+export function twinPrizeSlots(x: number): readonly PrizeKind[] {
+  return x < 0 ? PRIZE_SLOTS_LEFT : PRIZE_SLOTS_RIGHT;
+}
 export function prizeSlotIndex(x: number, halfWidth = 3.65) {
   const span = halfWidth * 2;
   return Math.max(0,Math.min(6,Math.floor((x+halfWidth)/(span/7))));

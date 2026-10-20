@@ -1,4 +1,4 @@
-import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, OUTLETS, SPLITTER, TWIN_LANE } from './config.ts';
+import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, PRIZE_SLOTS_LEFT, PRIZE_SLOTS_RIGHT, OUTLETS, SPLITTER, TWIN_LANE, type PrizeKind } from './config.ts';
 import type { CoinPusher } from './physics.ts';
 import {isWideGame,type ActiveGame} from './dual-pusher.ts';
 import {loadSlotArtwork,renderSlot,renderCabinetCelebration} from './slot-rendering.ts';
@@ -39,7 +39,7 @@ function sprite(kind:number,x:number,y:number,w:number,h:number,angle=0){
  ctx.drawImage(atlas,sx*scale,sy*scale,sw*scale,sh*scale,-w/2,-h/2,w,h);ctx.restore();
 }
 
-function drawTrackGates(game:CoinPusher,lane:number,cx:number,lightBase:number){
+function drawTrackGates(game:CoinPusher,lane:number,cx:number,lightBase:number,prizes:readonly PrizeKind[]=PRIZE_SLOTS){
  const gateLeft=project(lane-FRONT_EXIT.halfWidth,2.45,.25,cx).x;
  const gateRight=project(lane+FRONT_EXIT.halfWidth,2.45,.25,cx).x;
  const gateWidth=(gateRight-gateLeft)/7;
@@ -47,12 +47,12 @@ function drawTrackGates(game:CoinPusher,lane:number,cx:number,lightBase:number){
    const x=gateLeft+i*gateWidth,gs=gates.naturalWidth/2048;
    const active=game.time-game.slotLights[lightBase+i]<.8;
    ctx.save();
-   if(active) {ctx.shadowColor=PRIZE_SLOTS[i]==='gold'?'#ffcc55':'#7bffba';ctx.shadowBlur=18;}
+   if(active) {ctx.shadowColor=prizes[i]==='gold'?'#ffcc55':'#7bffba';ctx.shadowBlur=18;}
    ctx.drawImage(gates,879*gs,160*gs,30*gs,365*gs,x-5,702,10,76);
    if(i===6)ctx.drawImage(gates,879*gs,160*gs,30*gs,365*gs,x+gateWidth-5,702,10,76);
-   if(PRIZE_SLOTS[i]!=='none') {
-     const art=PRIZE_SLOTS[i]==='gold'?gold:bead;
-     const size=PRIZE_SLOTS[i]==='gold'?34:24;
+   if(prizes[i]!=='none') {
+     const art=prizes[i]==='gold'?gold:bead;
+     const size=prizes[i]==='gold'?34:24;
      ctx.drawImage(art,x+gateWidth/2-size/2,764,size,size);
    }
    ctx.restore();
@@ -78,13 +78,8 @@ function paintCabinet(game:CoinPusher){
  const {pushZ,coins}=game;
 
  ctx.clearRect(0,0,W,1536);
- // 連體櫃美術維持橫向拉伸
+ // 連體櫃美術維持橫向拉伸；上方綠幣出幣口只留中央一個
  ctx.drawImage(machine,0,0,W,1536);
- if(twin){
-  // 蓋掉拉伸後中央那一個出幣口，改畫左右兩個
-  const oy=300,oh=130;
-  ctx.drawImage(machine,360,oy,100,oh,cx-100,oy,200,oh);
- }
 
  if(twin){
   // 拉霸中心(offset+512)對齊龍頭 X
@@ -105,15 +100,13 @@ function paintCabinet(game:CoinPusher){
   }
  }
 
+ const dp=project(game.dropX,10.1,0,cx);sprite(2,dp.x,dp.y,100,76);
  if(twin){
-  const dl=project(game.dropXLeft,10.1,0,cx),dr=project(game.dropXRight,10.1,0,cx);
-  sprite(2,dl.x,dl.y,100,76);sprite(2,dr.x,dr.y,100,76);
-  drawTrackGates(game,-TWIN_LANE,cx,0);
-  drawTrackGates(game,TWIN_LANE,cx,7);
+  drawTrackGates(game,-TWIN_LANE,cx,0,PRIZE_SLOTS_LEFT);
+  drawTrackGates(game,TWIN_LANE,cx,7,PRIZE_SLOTS_RIGHT);
   drawTrackDragon(game,-TWIN_LANE,cx,'left');
   drawTrackDragon(game,TWIN_LANE,cx,'right');
  }else{
-  const dp=project(game.dropX,10.1,0,cx);sprite(2,dp.x,dp.y,100,76);
   drawTrackGates(game,0,cx,0);
   drawTrackDragon(game,0,cx,'left');
  }

@@ -2,7 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { SlotMachine } from './slot.ts';
 import {createInitialLayout} from './initial-layout.ts';
 import {PlayerWallet} from './wallet.ts';
-import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex, type ExitZone } from './config.ts';
+import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex, twinPrizeSlots, type ExitZone } from './config.ts';
 
 export type Coin = { body: RAPIER.RigidBody; entered: boolean; age: number; lowestY: number; stalledFor: number; exitZone: ExitZone | null; kind:'green'|'gold'; source:'player'|'bonus'|'bed'; slotChecked:boolean };
 export type CoinPusherOptions = { widthScale?: number; dualSlots?: boolean };
@@ -137,9 +137,7 @@ export class CoinPusher {
     if(this.gold<CONFIG.essenceCost) {this.autoDrop=false;return false;}
     if(this.time-this.lastDrop+1e-9<CONFIG.dropCooldown || this.coins.length>=this.maxCoins) return false;
     this.lastDrop=this.time;
-    const x=this.twinTracks?(this.activeDropLane==='left'?this.dropXLeft:this.dropXRight):this.dropX;
-    this.makeCoin(x,9.55,.25,true,'green','player');
-    if(this.twinTracks)this.activeDropLane=this.activeDropLane==='left'?'right':'left';
+    this.makeCoin(this.dropX,9.55,.25,true,'green','player');
     this.gold-=CONFIG.essenceCost;
     if(this.gold<CONFIG.essenceCost)this.autoDrop=false;
     this.dropped++;
@@ -158,12 +156,8 @@ export class CoinPusher {
     const stepDt=Math.max(1/240,dt);
     this.world.timestep=stepDt;
     this.time+=stepDt;
-    const sway=Math.sin(this.time*this.speed)*this.dropAmp;
-    if(this.twinTracks){
-      this.dropXLeft=-TWIN_LANE+sway;
-      this.dropXRight=TWIN_LANE+sway;
-      this.dropX=this.activeDropLane==='left'?this.dropXLeft:this.dropXRight;
-    }else this.dropX=sway;
+    // 雙命運殿上方綠幣出幣口也只留一個（中央來回）
+    this.dropX=Math.sin(this.time*this.speed)*this.dropAmp;
     if(this.autoDrop)this.drop();
     this.pushZ=1.5+(1-Math.cos(this.time*CONFIG.pusherAngularSpeed))*.58;
     this.pusher.setNextKinematicTranslation({x:0,y:.35,z:this.pushZ-2.5});
@@ -174,7 +168,7 @@ export class CoinPusher {
       if(!coin.slotChecked && p.y<2.05) {
         coin.slotChecked=true;
         const local=this.twinTracks?twinPrizeSlotIndex(p.x):prizeSlotIndex(p.x);
-        const prize=PRIZE_SLOTS[local];
+        const prize=(this.twinTracks?twinPrizeSlots(p.x):PRIZE_SLOTS)[local];
         const light=this.twinTracks?(p.x<0?local:local+7):local;
         this.slotLights[light]=this.time;
         const lane: 'left'|'right'=p.x<0?'left':'right';
