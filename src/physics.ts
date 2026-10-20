@@ -19,7 +19,7 @@ export class CoinPusher {
   readonly halfWidth:number;
   readonly rewardHalfWidth:number;
   readonly dropAmp:number;
-  readonly maxCoins:number;
+  get maxCoins(){return Math.round(CONFIG.maxCoins*(this.widthScale>1?1.5:1));}
   private wallet:PlayerWallet;
   private ownsWallet:boolean;
   get gold(){return this.wallet.gold;}
@@ -57,7 +57,6 @@ export class CoinPusher {
     this.halfWidth=3.65*this.widthScale;
     this.rewardHalfWidth=1.825*this.widthScale;
     this.dropAmp=3.15*this.widthScale;
-    this.maxCoins=Math.round(CONFIG.maxCoins*(this.widthScale>1?1.5:1));
     this.wallet=wallet??new PlayerWallet();this.ownsWallet=!wallet;
     this.launchRandom=launchRandom;this.layoutRandom=layoutRandom;this.reset();
   }
