@@ -41,6 +41,6 @@ export class CascadePusher {
   dispose(){this.upper.dispose();this.lower.dispose();}
 }
 
-export function isCascadeGame(game: {stacked?: boolean}): game is CascadePusher {
-  return game.stacked===true;
+export function isCascadeGame(game: object): game is CascadePusher {
+  return 'stacked' in game && (game as CascadePusher).stacked===true;
 }
