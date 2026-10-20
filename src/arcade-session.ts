@@ -17,5 +17,5 @@ export class ArcadeSession {
     if(!this.game||!this.leaveRequested)return false;
     this.game.dispose();this.game=null;this.machineId=null;this.leaveRequested=false;return true;
   }
-  step(){if(this.game&&!this.leaveRequested)this.game.step();}
+  step(dt?:number){if(this.game&&!this.leaveRequested)this.game.step(dt);}
 }

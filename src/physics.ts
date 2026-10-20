@@ -121,15 +121,17 @@ export class CoinPusher {
     this.autoDrop=false;this.pendingBonuses=[];this.slot.reset();this.coins=[];
     this.world.free();
   }
-  step() {
-    this.time+=CONFIG.fixedStep;
+  step(dt=CONFIG.fixedStep) {
+    const stepDt=Math.max(1/240,dt);
+    this.world.timestep=stepDt;
+    this.time+=stepDt;
     this.dropX=Math.sin(this.time*this.speed)*3.15;
     if(this.autoDrop)this.drop();
     this.pushZ=1.5+(1-Math.cos(this.time*CONFIG.pusherAngularSpeed))*.58;
     this.pusher.setNextKinematicTranslation({x:0,y:.35,z:this.pushZ-2.5});
     this.world.step();
     this.coins=this.coins.filter(coin=> {
-      coin.age+=CONFIG.fixedStep;
+      coin.age+=stepDt;
       const p=coin.body.translation();
       if(!coin.slotChecked && p.y<2.05) {
         coin.slotChecked=true;
@@ -152,7 +154,7 @@ export class CoinPusher {
         // Round pegs can balance a centre-on ball. Release stalled contacts
         // with a small board vibration, scaled by mass for the larger dragon orb.
         if(p.y<coin.lowestY-.08) { coin.lowestY=p.y;coin.stalledFor=0; }
-        else coin.stalledFor+=CONFIG.fixedStep;
+        else coin.stalledFor+=stepDt;
         if(coin.stalledFor>.35) {
           const direction=Math.sin(this.time*2.7+coin.body.handle*17)>=0?1:-1;
           const mass=coin.body.mass();

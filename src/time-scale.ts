@@ -3,6 +3,15 @@ export const TIME_SCALE_MIN = 0.01;
 export const TIME_SCALE_MAX = 1000;
 export const TIME_SCALE_PRESETS = [0.25, 0.5, 1, 2, 5, 10, 20, 50, 100] as const;
 
+/** 單幀最多物理步數（固定預算，高倍速改加大 dt 而非狂跑步數）。 */
+export const PHYSICS_STEPS_BUDGET = 16;
+/** 高倍速時單步最大時間；再大容易穿模，約可撐到 ~100× 仍流暢。 */
+export const MAX_PHYSICS_DT = 1 / 10;
+/** 單幀最多推進的遊戲時間（步數×最大 dt），避免卡頓後一次補跑爆炸。 */
+export const MAX_ACCUMULATED_GAME_TIME = PHYSICS_STEPS_BUDGET * MAX_PHYSICS_DT;
+/** UI 更新節流（真實時間毫秒）。 */
+export const UI_UPDATE_MS = 120;
+
 function readStored(): number {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -59,7 +68,15 @@ export function formatTimeScale(scale: number): string {
   return `${text}×`;
 }
 
-/** 避免極高倍速時單幀物理步數過多造成卡死。 */
-export function maxPhysicsStepsPerFrame(scale: number): number {
-  return Math.min(900, Math.max(12, Math.ceil(scale * 24)));
+/**
+ * 依欲推進的遊戲時間決定本幀物理步長與步數。
+ * 高倍速：步數固定在預算內，加大 dt，避免 100× 時跑上百次 world.step。
+ */
+export function planPhysicsFrame(desiredGameTime: number, baseStep: number): {dt: number; steps: number} {
+  const capped = Math.min(Math.max(desiredGameTime, 0), MAX_ACCUMULATED_GAME_TIME);
+  if (capped < baseStep * 0.5) return {dt: baseStep, steps: 0};
+  const idealSteps = Math.ceil(capped / baseStep);
+  const steps = Math.min(PHYSICS_STEPS_BUDGET, Math.max(1, idealSteps));
+  const dt = Math.min(MAX_PHYSICS_DT, Math.max(baseStep, capped / steps));
+  return {dt, steps};
 }
