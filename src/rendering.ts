@@ -16,16 +16,52 @@ splitter.src=new URL('./assets/triangle-splitter.png',document.baseURI).href;
 
 let draw:CanvasRenderingContext2D=ctx;
 
+/** 裁掉左右機台「相鄰側」外框寬度，讓兩櫃併成一座連體機。 */
+const DUAL_JOIN=118;
+
 export async function loadArtwork(){
  await Promise.all([machine.decode(),atlas.decode(),platform.decode(),bead.decode(),bay.decode(),gold.decode(),gates.decode(),dragon.decode(),pipe.decode(),splitter.decode(),loadSlotArtwork()]);
  setDisplayLayout(false);
 }
 
+export function dualCanvasWidth(){return 2048-2*DUAL_JOIN;}
+
 export function setDisplayLayout(dual:boolean){
- const w=dual?2048:1024;
+ const w=dual?dualCanvasWidth():1024;
  if(canvas.width!==w||canvas.height!==1536){canvas.width=w;canvas.height=1536;}
  const host=canvas.parentElement;
- if(host)host.classList.toggle('machine-dual',dual);
+ if(host){
+  host.classList.toggle('machine-dual',dual);
+  host.style.aspectRatio=dual?`${w} / 1536`:'2 / 3';
+ }
+}
+
+/** 中央銜接柱：蓋住裁切接縫，視覺上連成一台。 */
+function paintDualBridge(joinX:number){
+ const x=joinX;
+ ctx.save();
+ const body=ctx.createLinearGradient(x-36,0,x+36,0);
+ body.addColorStop(0,'rgba(12,22,18,0)');
+ body.addColorStop(.22,'#14241e');
+ body.addColorStop(.5,'#1c3228');
+ body.addColorStop(.78,'#14241e');
+ body.addColorStop(1,'rgba(12,22,18,0)');
+ ctx.fillStyle=body;ctx.fillRect(x-40,0,80,1536);
+ ctx.fillStyle='#b89a52';ctx.fillRect(x-22,70,3,1400);ctx.fillRect(x+19,70,3,1400);
+ ctx.fillStyle='#7a6430';ctx.fillRect(x-3,70,6,1400);
+ for(const y of [160,420,720,1020,1280]){
+  ctx.beginPath();ctx.ellipse(x,y,13,17,0,0,Math.PI*2);
+  const gem=ctx.createRadialGradient(x-3,y-4,2,x,y,16);
+  gem.addColorStop(0,'#b6ffd4');gem.addColorStop(.45,'#3dcf8a');gem.addColorStop(1,'#1a6b48');
+  ctx.fillStyle=gem;ctx.fill();
+  ctx.strokeStyle='#d4b86a88';ctx.lineWidth=1.5;ctx.stroke();
+ }
+ // 頂部連貫飾帶
+ ctx.fillStyle='#0d1a16ee';ctx.fillRect(0,96,canvas.width,44);
+ ctx.strokeStyle='#c2a76499';ctx.strokeRect(18.5,100.5,canvas.width-37,35);
+ ctx.fillStyle='#e6d39a';ctx.font='bold 15px "Microsoft JhengHei",serif';
+ ctx.textAlign='center';ctx.fillText('雙命運殿 · 並聯金庫',canvas.width/2,124);
+ ctx.restore();
 }
 
 function project(x:number,y:number,z:number){const t=Math.max(0,z)/7;return {x:512+x*(z>0.8?83+25*t:87),y:835-y*48+z*51};}
@@ -139,14 +175,13 @@ function paintCabinet(target:CanvasRenderingContext2D,game:CoinPusher,lite=false
 export function render(game:ActiveGame,lite=false){
  if(isDualGame(game)){
   setDisplayLayout(true);
+  const join=DUAL_JOIN,halfW=1024-join,seamX=halfW;
+  // 左櫃：去掉右側外框；右櫃：去掉左側外框，兩側內框重疊消失 → 連成一台
   paintCabinet(halfCtx,game.left,lite);
-  ctx.drawImage(half,0,0);
+  ctx.drawImage(half,0,0,halfW,1536,0,0,halfW,1536);
   paintCabinet(halfCtx,game.right,lite);
-  ctx.drawImage(half,1024,0);
-  ctx.fillStyle='rgba(8,18,14,0.55)';
-  ctx.fillRect(1018,0,12,1536);
-  ctx.strokeStyle='#c2a76488';
-  ctx.beginPath();ctx.moveTo(1024.5,40);ctx.lineTo(1024.5,1496);ctx.stroke();
+  ctx.drawImage(half,join,0,halfW,1536,seamX,0,halfW,1536);
+  paintDualBridge(seamX);
  }else{
   setDisplayLayout(false);
   paintCabinet(ctx,game,lite);
