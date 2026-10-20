@@ -1,6 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { SlotMachine } from './slot.ts';
 import {createInitialLayout} from './initial-layout.ts';
+import {PlayerWallet} from './wallet.ts';
 import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, prizeSlotIndex, classifyFrontExit, type ExitZone } from './config.ts';
 
 export type Coin = { body: RAPIER.RigidBody; entered: boolean; age: number; lowestY: number; stalledFor: number; exitZone: ExitZone | null; kind:'green'|'gold'; source:'player'|'bonus'|'bed'; slotChecked:boolean };
@@ -9,7 +10,10 @@ export class CoinPusher {
   pusher!: RAPIER.RigidBody;
   coins: Coin[] = [];
   initialCount=0;
-  gold=CONFIG.startingGold;
+  private wallet:PlayerWallet;
+  private ownsWallet:boolean;
+  get gold(){return this.wallet.gold;}
+  set gold(value:number){this.wallet.setBalance(value);}
   earnedGold=0;
   autoDrop=false;
   time = 0;
@@ -35,7 +39,10 @@ export class CoinPusher {
   splitterCollider!:RAPIER.Collider;
   private launchRandom:()=>number;
   private layoutRandom:()=>number;
-  constructor(launchRandom:()=>number=Math.random,layoutRandom:()=>number=Math.random) { this.launchRandom=launchRandom;this.layoutRandom=layoutRandom;this.reset(); }
+  constructor(launchRandom:()=>number=Math.random,layoutRandom:()=>number=Math.random,wallet?:PlayerWallet) {
+    this.wallet=wallet??new PlayerWallet();this.ownsWallet=!wallet;
+    this.launchRandom=launchRandom;this.layoutRandom=layoutRandom;this.reset();
+  }
 
   private box(x:number,y:number,z:number,hx:number,hy:number,hz:number) {
     this.world.createCollider(RAPIER.ColliderDesc.cuboid(hx,hy,hz).setTranslation(x,y,z).setFriction(.8));
@@ -57,7 +64,8 @@ export class CoinPusher {
     this.bonusSpawned=0;this.pendingBonuses=[];this.slotLights=Array(7).fill(-1000);this.lastGreenEject=-1000;this.lastGoldEject=-1000;
     this.lastLeftEject=-1000;this.lastRightEject=-1000;this.nextEssenceSide='left';
     this.outletColliders=[];
-    this.gold=CONFIG.startingGold;this.earnedGold=0;this.autoDrop=false;
+    if(this.ownsWallet)this.gold=CONFIG.startingGold;
+    this.earnedGold=0;this.autoDrop=false;
     this.slot.reset();
     this.box(0,-.22,3.15,3.65,.22,3.65);
     const points:number[]=[];
@@ -108,6 +116,10 @@ export class CoinPusher {
     this.autoDrop=enabled&&this.gold>=CONFIG.essenceCost;
     if(this.autoDrop)this.drop();
     return this.autoDrop;
+  }
+  dispose() {
+    this.autoDrop=false;this.pendingBonuses=[];this.slot.reset();this.coins=[];
+    this.world.free();
   }
   step() {
     this.time+=CONFIG.fixedStep;

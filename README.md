@@ -124,3 +124,6 @@ src/slot.ts 為獎項與狀態機；src/slot-rendering.ts 為動畫；tests/slot
 
 精華返幣：中央寶箱完整收到一顆精華後，金幣餘額立即+1，初始／玩家投入／系統獎勵的精華均適用；左右回收不返幣，龍珠維持入箱啟動SLOT。每顆僅結算一次，餘額回補後可繼續投入。大廳與跨機台共用錢包工項保留、暫不實作。tests/essence-return.mjs驗證。
 
+
+大廳已實作：預設進入冒險大廳，秘境金庫為首台機台；返回前確認、取消續玩、離開清除盤面與待派獎勵，重新入場產生新局。共用錢包以localStorage保存，首次1000，進出機台與重新整理皆不重發；精華入箱返幣同步保存。跨裝置與登入帳號尚未製作。新增模組wallet.ts、arcade-session.ts、machines.ts；tests/lobby-session.mjs已加入部署檢查。
+

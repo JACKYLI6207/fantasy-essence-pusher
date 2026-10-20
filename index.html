@@ -1,9 +1,18 @@
 <!doctype html>
 <html lang="zh-Hant">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>秘境金庫 · 推幣冒險</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>冒險大廳 · 秘境金庫</title></head>
 <body><div id="app">
-<header><span class="eyebrow">FANTASY ARCADE / PROTOTYPE 01</span><h1>秘境金庫</h1><p>掌握時機，讓精華穿越命運的針陣。</p></header>
-<main>
+<header class="app-header"><div><span class="eyebrow">FANTASY ARCADE</span><h1 id="page-title">冒險大廳</h1><p id="page-subtitle">選擇一台機台，展開你的下一段冒險。</p></div><div class="lobby-wallet" id="lobby-wallet"><span>共用金幣</span><strong id="lobby-gold">1,000</strong><small>本機保存 · 所有機台共用</small></div></header>
+<nav id="machine-nav" class="return-nav" hidden><button id="back-to-lobby" class="back-button">← 返回大廳</button><span>離開機台將重置盤面，金幣保留</span></nav>
+<section id="lobby-screen" class="lobby-screen" aria-label="冒險大廳">
+  <div class="lobby-intro"><div><span class="eyebrow">CHOOSE YOUR ADVENTURE</span><h2>每段冒險，從這裡開始。</h2><p>挑選機台，讓精華與龍珠帶你探索秘境。</p></div><span class="available-count">01 台機台開放中</span></div>
+  <article class="machine-card">
+    <div class="machine-card-art"><img id="machine-preview" src="./assets/machine.png" alt="秘境金庫奇幻機台預覽"><span class="machine-number">MACHINE 01</span><span class="open-badge">開放遊玩</span></div>
+    <div class="machine-card-info"><span class="eyebrow">奇幻冒險 · 推珠 × SLOT</span><h3 id="machine-card-name">秘境金庫</h3><p id="machine-card-description">讓精華穿越針陣，喚醒龍珠，開啟寶箱裡的命運。</p><div class="machine-tags"><span>1 金幣 / 精華</span><span>龍珠 SLOT</span><span>隨機盤面</span></div><div class="machine-card-rule"><span>每次入場，都是新的盤面</span><p>精華入箱返還金幣。離開時機台進度與未派獎勵清除，已持有金幣保留。</p></div><button id="enter-machine">進入機台 →</button><p id="lobby-error" class="hint" role="alert"></p></div>
+  </article>
+  <p class="lobby-footnote">金幣儲存在目前瀏覽器。機台不保存盤面，重新進入會重新佈置。</p>
+</section>
+<main id="machine-screen" hidden>
 <section class="machine">
   <div class="wallet" aria-label="金幣餘額"><span class="wallet-symbol" aria-hidden="true">◈</span><div><span class="wallet-label">金幣</span><strong id="gold-balance" aria-label="目前金幣">1,000</strong></div></div>
   <span id="machine-announcement" class="sr-only" role="status" aria-live="polite">秘境金庫 · 龍珠入寶箱，喚醒命運 SLOT</span>
@@ -17,7 +26,7 @@
     <p id="slot-status" class="hint">龍珠入箱啟動 SLOT</p>
     <span id="status">物理引擎準備中</span>
   </div>
-  <details class="adventure-details">
+  <details class="adventure-details" id="adventure-details">
     <summary><span class="eyebrow">THE ADVENTURE BEGINS</span><span>玩法與紀錄</span></summary>
     <h2>每一顆精華，<br>都是新的可能。</h2>
     <div class="stats"><div><small>投入精華</small><strong id="dropped">0</strong></div><div><small>玩家獎勵</small><strong id="won">0</strong></div><div><small>系統回收</small><strong id="recycled">0</strong></div></div>
@@ -28,5 +37,7 @@
   </details>
 </aside>
 </main><footer>奇幻冒險 · 基礎機台測試版 <span>AI 機台美術 / 即時物理模擬</span></footer>
+<dialog id="leave-dialog" class="leave-dialog" aria-labelledby="leave-title" aria-describedby="leave-description"><div class="leave-dialog-content"><span class="eyebrow">LEAVE THIS ADVENTURE?</span><h2 id="leave-title">確定返回大廳？</h2><p id="leave-description">離開後，本機台的盤面與遊玩進度將重置，下次進入會重新佈置。<strong>金幣餘額會保留。</strong></p><p class="leave-warning">尚未完成的 SLOT、待轉次數與未派出的精華獎勵也會清除。</p><div class="leave-actions"><button type="button" id="keep-playing">繼續遊玩</button><button type="button" id="confirm-leave" class="leave-confirm">離開並重置</button></div></div></dialog>
 </div><script type="module" src="/src/main.ts"></script></body></html>
+
 

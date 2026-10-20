@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';import R from '@dimforge/rapier3d-compat';import {PlayerWallet,WALLET_KEY} from '../src/wallet.ts';import {ArcadeSession} from '../src/arcade-session.ts';
+const values=new Map();const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};
+let wallet=new PlayerWallet(storage);assert.equal(wallet.gold,1000);assert.equal(wallet.spend(1),true);assert.equal(wallet.gold,999);wallet=new PlayerWallet(storage);assert.equal(wallet.gold,999,'重新載入不可重發起始金幣');
+wallet.setBalance(0);assert.equal(new PlayerWallet(storage).gold,0,'零餘額也應保留');assert.equal(wallet.spend(1),false);assert.equal(wallet.credit(2),true);assert.equal(wallet.gold,2);assert.throws(()=>wallet.setBalance(-1));
+values.set(WALLET_KEY,'bad JSON');assert.equal(new PlayerWallet(storage).gold,1000);values.set(WALLET_KEY,JSON.stringify({version:1,gold:-5}));assert.equal(new PlayerWallet(storage).gold,1000);
+const blocked={getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}};assert.equal(new PlayerWallet(blocked).gold,1000);
+await R.init();wallet=new PlayerWallet(storage);const session=new ArcadeSession(wallet);assert.equal(session.game,null);assert.equal(session.enter('essence-vault'),true);const first=session.game;
+assert.equal(session.enter('essence-vault'),false,'不可重複入場建立兩個世界');first.setAutoDrop(true);assert.equal(wallet.gold,999);
+first.pendingBonuses.push({kind:'green',due:10});first.slot.trigger();const snapshot={time:first.time,count:first.coins.length,gold:wallet.gold};
+assert.equal(session.requestLeave(),true);for(let i=0;i<120;i++)session.step();assert.equal(first.time,snapshot.time);assert.equal(first.coins.length,snapshot.count);assert.equal(wallet.gold,snapshot.gold,'確認離開期間不得扣錢');assert.equal(first.pendingBonuses.length,1);
+session.cancelLeave();assert.equal(first.autoDrop,true,'取消離開保留原本自動投入');session.step();assert.ok(first.time>snapshot.time);assert.equal(first.slot.phase,'spinning');
+session.requestLeave();assert.equal(session.confirmLeave(),true);assert.equal(session.game,null);assert.equal(first.autoDrop,false);assert.equal(first.pendingBonuses.length,0);assert.equal(first.slot.queue,0);assert.equal(first.coins.length,0);assert.equal(wallet.gold,999,'離開只清盤面，不清金幣');
+assert.equal(session.enter('essence-vault'),true);const second=session.game;assert.notEqual(first,second);assert.equal(second.gold,999);assert.equal(second.time,0);assert.equal(second.dropped,0);assert.equal(second.autoDrop,false);assert.equal(second.slot.spins,0);assert.ok(second.coins.length>=65&&second.coins.length<=86);assert.equal(second.pendingBonuses.length,0);
+second.drop();assert.equal(wallet.gold,998);const bead=second.coins[0];bead.body.setTranslation({x:0,y:-1.9,z:7.1},true);session.step();assert.equal(wallet.gold,999,'機台返幣必須寫入共用錢包');assert.equal(new PlayerWallet(storage).gold,999,'返幣即時保存');
+session.requestLeave();session.confirmLeave();for(let i=0;i<120;i++)session.step();assert.equal(wallet.gold,999,'大廳不得背景扣錢');assert.equal(session.confirmLeave(),false);
+console.log('大廳驗證通過：共用金幣本機保存、確認期間凍結、取消續玩、離開清盤、再入新局、返幣同步、無背景扣款。');

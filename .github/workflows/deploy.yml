@@ -24,6 +24,7 @@ jobs:
       - run: node tests/initial-layout.mjs
       - run: node tests/wallet-auto.mjs
       - run: node tests/essence-return.mjs
+      - run: node tests/lobby-session.mjs
       - run: node tests/slot.mjs
       - run: npm run build
       - uses: actions/configure-pages@v5
