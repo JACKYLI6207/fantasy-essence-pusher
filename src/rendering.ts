@@ -137,10 +137,15 @@ function paintCabinet(game:CoinPusher){
    const p=project(SPLITTER.x,SPLITTER.height/2,SPLITTER.z,cx);
    ctx.drawImage(splitter,p.x-22*SPLITTER.scale,p.y-21*SPLITTER.scale,44*SPLITTER.scale,42*SPLITTER.scale);splitterDrawn=true;
  };
- const clipL=project(-game.halfWidth-0.2,0,0,cx).x;
- const clipR=project(game.halfWidth+0.2,0,0,cx).x;
+ // 幣床是透視梯形：若用 z=0 的矩形裁切，前方左右會被切成空三角
+ const bedBackL=project(-game.halfWidth-0.2,.7,0,cx).x;
+ const bedBackR=project(game.halfWidth+0.2,.7,0,cx).x;
+ const bedFrontL=project(-game.halfWidth-0.2,0,FRONT_EXIT.edgeZ,cx).x;
+ const bedFrontR=project(game.halfWidth+0.2,0,FRONT_EXIT.edgeZ,cx).x;
  ctx.save();
- ctx.beginPath();ctx.rect(clipL,0,clipR-clipL,1460);ctx.clip();
+ ctx.beginPath();
+ ctx.moveTo(bedBackL,0);ctx.lineTo(bedBackR,0);
+ ctx.lineTo(bedFrontR,1460);ctx.lineTo(bedFrontL,1460);ctx.closePath();ctx.clip();
  for(const coin of ordered){
    if(!splitterDrawn&&depth(coin)>=SPLITTER.z*51+SPLITTER.height*12.5)drawSplitter();
    const p=coin.body.translation(),s=project(p.x,p.y,p.z,cx);
