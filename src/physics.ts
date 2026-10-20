@@ -62,7 +62,8 @@ export class CoinPusher {
     // 下方幣池仍兩倍寬；上半球道用雙份原尺寸，不拉寬單道
     this.halfWidth=3.65*this.widthScale;
     this.rewardHalfWidth=1.825;
-    this.dropAmp=3.15;
+    // 雙命運殿出幣口左右行程跟著機寬加倍
+    this.dropAmp=3.15*this.widthScale;
     this.wallet=wallet??new PlayerWallet();this.ownsWallet=!wallet;
     this.launchRandom=launchRandom;this.layoutRandom=layoutRandom;this.reset();
   }
