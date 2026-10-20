@@ -42,7 +42,8 @@ export const TWIN_DRAGON_LEFT = -TWIN_LANE;
 export const TWIN_DRAGON_RIGHT = TWIN_LANE;
 /** 下層左右對稱旋轉橫槓（影響綠／金球走向）。 */
 export const SPIN_BARS = {
-  x: 2.75,
+  // 相對原位朝外各 2 格
+  x: 2.75 + PRIZE_GATE * 2,
   y: 7.05,
   z: .25,
   halfLength: .95,
