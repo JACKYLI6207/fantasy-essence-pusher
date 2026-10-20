@@ -5,8 +5,8 @@ import { classifyFrontExit } from '../src/config.ts';
 for(const x of [-3.65,-2.8,-1.825,1.825,2.8,3.65]) assert.equal(classifyFrontExit(x),'recycle');
 for(const x of [-1.824,0,1.824]) assert.equal(classifyFrontExit(x),'reward');
 await RAPIER.init();
-const game=new CoinPusher();
-assert.equal(game.coins.length,108);
+const game=new CoinPusher(()=>.5,()=>.5);
+assert.equal(game.coins.length,game.initialCount);
 assert.equal(game.coins[0].body.collider(0).shapeType(),RAPIER.ShapeType.Ball,'綠珠必須使用球體碰撞');
 assert.equal(game.drop(),true);
 assert.equal(game.drop(),false,'投幣冷卻必須阻擋連發');
@@ -29,9 +29,9 @@ assert.ok(game.pusher.translation().z-shelf.z<0,'平台後緣始終藏在機台�
 const trapped=game.coins.filter(c=>{const p=c.body.translation();return c.entered && p.z<game.pushZ-.3 && p.y<.5;});
 assert.equal(trapped.length,0,'不得有硬幣落進推幣台後方的深色死角');
 assert.ok(game.won>0,'持續投幣後，前方應有硬幣掉落');
-assert.equal(game.coins.length+game.won+game.recycled,108+game.dropped+game.bonusSpawned,'金幣只能留在機台或從前方回收，不能從左右消失');
+assert.equal(game.coins.length+game.won+game.recycled,game.initialCount+game.dropped+game.bonusSpawned,'金幣只能留在機台或從前方回收，不能從左右消失');
 console.log(JSON.stringify({dropped:game.dropped,transferred:game.transferred,won:game.won,remaining:game.coins.length}));
-game.reset();assert.equal(game.dropped,0);assert.equal(game.won,0);assert.equal(game.coins.length,108);
+game.reset();assert.equal(game.dropped,0);assert.equal(game.won,0);assert.equal(game.coins.length,game.initialCount);
 assert.equal(game.coins[0].body.collider(0).shapeType(),RAPIER.ShapeType.Ball,'綠珠必須使用球體碰撞');
 for(const [index,sign] of [[0,-1],[1,1]]) {
   const coin=game.coins[index];
@@ -70,7 +70,7 @@ for(let frame=0;frame<90;frame++) game.step();
 assert.equal(game.won,1,'中央掉落的一顆珠子計入玩家獎勵');
 assert.equal(game.recycled,2,'左右各一顆珠子只能系統回收');
 assert.ok(game.lastRewardTime>0,'中央入箱必須觸發寶石亮光時間');
-assert.equal(game.coins.length+game.won+game.recycled,108,'回收與獎勵都只能結算一次');
+assert.equal(game.coins.length+game.won+game.recycled,game.initialCount,'回收與獎勵都只能結算一次');
 game.reset();assert.equal(game.recycled,0,'重置也應清除系統回收數');
 assert.equal(game.lastRewardTime,-1000,'重置時寶石應恢復未點亮');
 for(const [index,x] of [[0,-2.8],[1,2.8]]) {

@@ -1,5 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { SlotMachine } from './slot.ts';
+import {createInitialLayout} from './initial-layout.ts';
 import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, prizeSlotIndex, classifyFrontExit, type ExitZone } from './config.ts';
 
 export type Coin = { body: RAPIER.RigidBody; entered: boolean; age: number; lowestY: number; stalledFor: number; exitZone: ExitZone | null; kind:'green'|'gold'; source:'player'|'bonus'|'bed'; slotChecked:boolean };
@@ -7,6 +8,7 @@ export class CoinPusher {
   world!: RAPIER.World;
   pusher!: RAPIER.RigidBody;
   coins: Coin[] = [];
+  initialCount=0;
   time = 0;
   dropped = 0;
   won = 0;
@@ -29,7 +31,8 @@ export class CoinPusher {
   outletColliders: RAPIER.Collider[] = [];
   splitterCollider!:RAPIER.Collider;
   private launchRandom:()=>number;
-  constructor(launchRandom:()=>number=Math.random) { this.launchRandom=launchRandom;this.reset(); }
+  private layoutRandom:()=>number;
+  constructor(launchRandom:()=>number=Math.random,layoutRandom:()=>number=Math.random) { this.launchRandom=launchRandom;this.layoutRandom=layoutRandom;this.reset(); }
 
   private box(x:number,y:number,z:number,hx:number,hy:number,hz:number) {
     this.world.createCollider(RAPIER.ColliderDesc.cuboid(hx,hy,hz).setTranslation(x,y,z).setFriction(.8));
@@ -84,9 +87,8 @@ export class CoinPusher {
     // an unreachable strip of lower floor behind a detached moving bar.
     this.pusher=this.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0,.35,this.pushZ-2.5));
     this.world.createCollider(RAPIER.ColliderDesc.cuboid(3.78,.35,2.5).setFriction(.5),this.pusher);
-    for(let row=0;row<9;row++) for(let col=0;col<12;col++) {
-      this.makeCoin((col-5.5)*.56+(row%2?.12:0),CONFIG.radius+.03,2.3+row*.55);
-    }
+    const layout=createInitialLayout(this.layoutRandom);this.initialCount=layout.length;
+    for(const p of layout)this.makeCoin(p.x,p.y,p.z);
   }
   drop() {
     if(this.time-this.lastDrop+1e-9<CONFIG.dropCooldown || this.coins.length>=CONFIG.maxCoins) return false;
