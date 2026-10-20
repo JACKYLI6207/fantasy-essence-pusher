@@ -1,5 +1,5 @@
 import type {CoinPusher} from './physics.ts';
-import {REEL_STOPS,SLOT_REWARDS} from './slot.ts';
+import {REEL_STOPS,SLOT_REWARDS,type SlotMachine} from './slot.ts';
 import {celebration,marqueeMessage} from './celebration.ts';
 const frame=new Image(),symbols=new Image();
 frame.src=new URL('./assets/slot-frame.png',document.baseURI).href;symbols.src=new URL('./assets/slot-symbols.png',document.baseURI).href;
@@ -8,11 +8,10 @@ export function drawSlotSymbol(ctx:CanvasRenderingContext2D,index:number,x:numbe
  const cell=symbols.naturalWidth/3;
  ctx.drawImage(symbols,(index%3)*cell,Math.floor(index/3)*cell,cell,cell,x-size/2,y-size/2,size,size);
 }
-export function renderSlot(ctx:CanvasRenderingContext2D,game:CoinPusher) {
- const slot=game.slot,elapsed=game.time-slot.startTime;
+export function renderSlot(ctx:CanvasRenderingContext2D,game:CoinPusher,offsetX=0,slot:SlotMachine=game.slot) {
+ const elapsed=game.time-slot.startTime;
  ctx.save();
- // A recessed display sits behind the transparent pin plane. Physical pins
- // remain visible in front; no invisible collisions are introduced by the UI.
+ ctx.translate(offsetX,0);
  ctx.drawImage(frame,280,520,464,176);
  const left=316,top=554,height=90,width=116;
  for(let reel=0;reel<3;reel++) {
@@ -41,42 +40,45 @@ export function renderSlot(ctx:CanvasRenderingContext2D,game:CoinPusher) {
  ctx.restore();
 }
 export {SLOT_REWARDS};
-export function renderCabinetCelebration(ctx:CanvasRenderingContext2D,game:CoinPusher) {
+export function renderCabinetCelebration(ctx:CanvasRenderingContext2D,game:CoinPusher,canvasW=1024) {
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
- const fx=celebration(game.slot,game.time,reduced);
+ const active=game.dualSlots && (game.slotB.phase!=='idle'||game.slotB.lastAmount>0) && game.slot.phase==='idle'
+  ? game.slotB : game.slot;
+ const fx=celebration(active,game.time,reduced);
+ const cx=canvasW/2;
  if(fx.intensity>0) {
    ctx.save();ctx.globalCompositeOperation='screen';
    const jackpot=fx.tier==='jackpot';
-   // Soft cabinet edge lighting, capped to two pulses per second; no whiteout.
-   const edge=ctx.createLinearGradient(0,0,1024,0);
+   const edge=ctx.createLinearGradient(0,0,canvasW,0);
    const color=jackpot?'255,199,67':'86,241,167';
    edge.addColorStop(0,`rgba(${color},${fx.intensity*(jackpot?.65:.28)})`);
    edge.addColorStop(.25,'rgba(0,0,0,0)');edge.addColorStop(.75,'rgba(0,0,0,0)');
    edge.addColorStop(1,`rgba(${color},${fx.intensity*(jackpot?.65:.28)})`);
-   ctx.fillStyle=edge;ctx.fillRect(0,0,1024,1536);
+   ctx.fillStyle=edge;ctx.fillRect(0,0,canvasW,1536);
    ctx.strokeStyle=`rgba(${color},${fx.intensity})`;ctx.lineWidth=jackpot?12:5;
-   ctx.shadowColor=`rgb(${color})`;ctx.shadowBlur=jackpot?40:18;ctx.strokeRect(24,20,976,1490);
+   ctx.shadowColor=`rgb(${color})`;ctx.shadowBlur=jackpot?40:18;ctx.strokeRect(24,20,canvasW-48,1490);
    if(jackpot) {
      ctx.globalAlpha=fx.intensity*.55;
      for(let i=0;i<16;i++) {
-       const angle=i*Math.PI/8,travel=40+(game.time-game.slot.resultTime)*65;
-       const x=512+Math.cos(angle)*travel,y=600+Math.sin(angle)*travel;
+       const angle=i*Math.PI/8,travel=40+(game.time-active.resultTime)*65;
+       const x=cx+Math.cos(angle)*travel,y=600+Math.sin(angle)*travel;
        ctx.fillStyle='#ffe8a3';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();
      }
    }
    ctx.restore();
  }
- // Reuse the AI-painted bezel for an integrated marquee beneath the crest.
- ctx.save();ctx.drawImage(frame,180,251,664,76);
- ctx.beginPath();ctx.rect(237,268,550,39);ctx.clip();
+ const barW=Math.min(664,canvasW-120);
+ const barX=(canvasW-barW)/2;
+ ctx.save();ctx.drawImage(frame,barX,251,barW,76);
+ ctx.beginPath();ctx.rect(barX+57,268,barW-114,39);ctx.clip();
  ctx.font='bold 22px "Microsoft JhengHei",sans-serif';ctx.textBaseline='middle';
- ctx.fillStyle=game.slot.lastAmount>=100&&game.slot.phase!=='spinning'?'#ffe49c':'#bcecd3';
- const text=marqueeMessage(game.slot),width=ctx.measureText(text).width;
- if(width<=536||reduced){ctx.textAlign='center';ctx.fillText(text,512,288,536);}
+ ctx.fillStyle=active.lastAmount>=100&&active.phase!=='spinning'?'#ffe49c':'#bcecd3';
+ const text=marqueeMessage(active,game.widthScale>1),width=ctx.measureText(text).width;
+ const maxW=barW-128;
+ if(width<=maxW||reduced){ctx.textAlign='center';ctx.fillText(text,cx,288,maxW);}
  else {
    const scroll=(game.time*.055%1)*(width+100);ctx.textAlign='left';
-   ctx.fillText(text,249-scroll,288);ctx.fillText(text,249-scroll+width+100,288);
+   ctx.fillText(text,barX+69-scroll,288);ctx.fillText(text,barX+69-scroll+width+100,288);
  }
  ctx.restore();
 }
-

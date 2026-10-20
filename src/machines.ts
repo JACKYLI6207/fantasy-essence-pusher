@@ -11,8 +11,8 @@ export const MACHINES = [
   {
     id: 'twin-fate',
     name: '雙命運殿',
-    tag: '奇幻冒險 · 雙機 × 雙 SLOT',
-    description: '並聯兩座金庫，寬幅盤面與雙拉霸同步運轉，命運加倍開展。',
+    tag: '奇幻冒險 · 連體寬機 × 雙 SLOT',
+    description: '一座雙倍寬連體金庫：幣池互通、單一出幣口與接幣口，中央雙拉霸各自運轉。',
     image: 'machine.png',
     entryCost: 1,
     layout: 'dual' as const,

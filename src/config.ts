@@ -24,14 +24,15 @@ export const OUTLETS = {
   leftGreenSpawn: {x:-2.8,y:1.55,z:2.75},
 };
 export const PRIZE_SLOTS = ['none','green','none','gold','none','green','none'] as const;
-export function prizeSlotIndex(x: number) {
-  return Math.max(0,Math.min(6,Math.floor((x+3.65)/(7.3/7))));
+export function prizeSlotIndex(x: number, halfWidth = 3.65) {
+  const span = halfWidth * 2;
+  return Math.max(0,Math.min(6,Math.floor((x+halfWidth)/(span/7))));
 }
 export const FRONT_EXIT = { halfWidth: 3.65, rewardHalfWidth: 1.825, edgeZ: 6.8 };
 export type ExitZone = 'reward' | 'recycle';
 // A bead centred exactly on a divider belongs to the outer recovery zone.
-export function classifyFrontExit(x: number): ExitZone {
-  return Math.abs(x) < FRONT_EXIT.rewardHalfWidth ? 'reward' : 'recycle';
+export function classifyFrontExit(x: number, rewardHalfWidth = FRONT_EXIT.rewardHalfWidth): ExitZone {
+  return Math.abs(x) < rewardHalfWidth ? 'reward' : 'recycle';
 }
 // Offset upper rows intercept one another's vertical gaps. The lower rows
 // retain clearance for gold beads emitted beneath the dragon.
