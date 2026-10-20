@@ -89,6 +89,8 @@ export class CoinPusher {
     if(this.coins.length>=this.maxCoins)return false;
     const cx=Math.max(-this.halfWidth+.4,Math.min(this.halfWidth-.4,x));
     this.makeCoin(cx,9.55,.25,true,kind,'bonus');
+    // bonus 預設跳過判定；接珠必須走下層七格／金球判定
+    this.coins[this.coins.length-1].slotChecked=false;
     return true;
   }
 
