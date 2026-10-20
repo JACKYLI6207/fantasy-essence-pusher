@@ -1,4 +1,4 @@
-import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, OUTLETS, SPLITTER } from './config.ts';
+import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, OUTLETS, SPLITTER, TWIN_LANE } from './config.ts';
 import type { CoinPusher } from './physics.ts';
 import {isWideGame,type ActiveGame} from './dual-pusher.ts';
 import {loadSlotArtwork,renderSlot,renderCabinetCelebration} from './slot-rendering.ts';
@@ -39,39 +39,13 @@ function sprite(kind:number,x:number,y:number,w:number,h:number,angle=0){
  ctx.drawImage(atlas,sx*scale,sy*scale,sw*scale,sh*scale,-w/2,-h/2,w,h);ctx.restore();
 }
 
-function paintCabinet(game:CoinPusher){
- const wide=game.widthScale>1;
- const W=wide?WIDE_W:1024;
- const cx=W/2;
- const sx=game.widthScale;
- const {dropX,pushZ,coins}=game;
-
- ctx.clearRect(0,0,W,1536);
- // 連體櫃：整張機台美術橫向拉伸成一座，不要中間分界
- ctx.drawImage(machine,0,0,W,1536);
-
- if(wide){
-  renderSlot(ctx,game,W*0.05,game.slot);
-  renderSlot(ctx,game,W*0.05+900,game.slotB);
- }else renderSlot(ctx,game);
-
- for(const peg of pegs){
-  const p=project(peg.x*sx,peg.y,.25,cx),size=24*(peg.radius ?? .105)/.105;
-  sprite(1,p.x,p.y,size,size);
- }
- if(wide){
-  for(const x of [-4.2,-1.4,1.4,4.2]){
-   const p=project(x,6.65,.25,cx);sprite(1,p.x,p.y,24,24);
-  }
- }
-
- const dp=project(dropX,10.1,0,cx);sprite(2,dp.x,dp.y,100,76);
- const gateLeft=project(-game.halfWidth,2.45,.25,cx).x;
- const gateRight=project(game.halfWidth,2.45,.25,cx).x;
+function drawTrackGates(game:CoinPusher,lane:number,cx:number,lightBase:number){
+ const gateLeft=project(lane-FRONT_EXIT.halfWidth,2.45,.25,cx).x;
+ const gateRight=project(lane+FRONT_EXIT.halfWidth,2.45,.25,cx).x;
  const gateWidth=(gateRight-gateLeft)/7;
  for(let i=0;i<7;i++) {
    const x=gateLeft+i*gateWidth,gs=gates.naturalWidth/2048;
-   const active=game.time-game.slotLights[i]<.8;
+   const active=game.time-game.slotLights[lightBase+i]<.8;
    ctx.save();
    if(active) {ctx.shadowColor=PRIZE_SLOTS[i]==='gold'?'#ffcc55':'#7bffba';ctx.shadowBlur=18;}
    ctx.drawImage(gates,879*gs,160*gs,30*gs,365*gs,x-5,702,10,76);
@@ -82,6 +56,55 @@ function paintCabinet(game:CoinPusher){
      ctx.drawImage(art,x+gateWidth/2-size/2,764,size,size);
    }
    ctx.restore();
+ }
+}
+function drawTrackDragon(game:CoinPusher,lane:number,cx:number,side:'left'|'right'){
+ const goldOutlet=project(lane,OUTLETS.dragon.y,OUTLETS.dragon.z,cx);
+ for(const [outlet,flip,last] of [[OUTLETS.leftPipe,true,game.lastLeftEject],[OUTLETS.pipe,false,game.lastRightEject]] as const) {
+   const p=project(lane+outlet.x,outlet.y,outlet.z,cx);ctx.save();ctx.translate(p.x,p.y);if(flip)ctx.scale(-1,1);
+   if(game.time-last<.18){ctx.shadowColor='#7bffb5';ctx.shadowBlur=18;}
+   ctx.drawImage(pipe,-62,-31,124,62);ctx.restore();
+ }
+ ctx.save();
+ if(game.time-game.lastGoldEject<.4&&game.lastGoldEjectLane===side){ctx.shadowColor='#ffe58a';ctx.shadowBlur=18;}
+ ctx.drawImage(dragon,goldOutlet.x-62,goldOutlet.y-53,124,106);ctx.restore();
+}
+
+function paintCabinet(game:CoinPusher){
+ const wide=game.widthScale>1;
+ const twin=game.twinTracks;
+ const W=wide?WIDE_W:1024;
+ const cx=W/2;
+ const {pushZ,coins}=game;
+
+ ctx.clearRect(0,0,W,1536);
+ // 連體櫃美術維持橫向拉伸（其它版面不動）
+ ctx.drawImage(machine,0,0,W,1536);
+
+ if(wide){
+  renderSlot(ctx,game,W*0.05,game.slot);
+  renderSlot(ctx,game,W*0.05+900,game.slotB);
+ }else renderSlot(ctx,game);
+
+ const lanes=twin?[-TWIN_LANE,TWIN_LANE]:[0];
+ for(const lane of lanes){
+  for(const peg of pegs){
+   const p=project(lane+peg.x,peg.y,.25,cx),size=24*(peg.radius ?? .105)/.105;
+   sprite(1,p.x,p.y,size,size);
+  }
+ }
+
+ if(twin){
+  const dl=project(game.dropXLeft,10.1,0,cx),dr=project(game.dropXRight,10.1,0,cx);
+  sprite(2,dl.x,dl.y,100,76);sprite(2,dr.x,dr.y,100,76);
+  drawTrackGates(game,-TWIN_LANE,cx,0);
+  drawTrackGates(game,TWIN_LANE,cx,7);
+  drawTrackDragon(game,-TWIN_LANE,cx,'left');
+  drawTrackDragon(game,TWIN_LANE,cx,'right');
+ }else{
+  const dp=project(game.dropX,10.1,0,cx);sprite(2,dp.x,dp.y,100,76);
+  drawTrackGates(game,0,cx,0);
+  drawTrackDragon(game,0,cx,'left');
  }
 
  const frontY=project(0,.7,pushZ,cx).y;
@@ -96,17 +119,6 @@ function paintCabinet(game:CoinPusher){
  ctx.drawImage(platform,28*artScale,166*artScale,1990*artScale,264*artScale,shelfLeft-40,801,shelfW+80,frontY-801);
  ctx.drawImage(platform,28*artScale,430*artScale,1990*artScale,140*artScale,shelfLeft-40,frontY,shelfW+80,32);
  ctx.restore();
-
- // 單一中央龍頭出幣口
- const goldOutlet=project(OUTLETS.dragon.x,OUTLETS.dragon.y,OUTLETS.dragon.z,cx);
- for(const [outlet,left,last] of [[OUTLETS.leftPipe,true,game.lastLeftEject],[OUTLETS.pipe,false,game.lastRightEject]] as const) {
-   const p=project(outlet.x*sx,outlet.y,outlet.z,cx);ctx.save();ctx.translate(p.x,p.y);if(left)ctx.scale(-1,1);
-   if(game.time-last<.18){ctx.shadowColor='#7bffb5';ctx.shadowBlur=18;}
-   ctx.drawImage(pipe,-62,-31,124,62);ctx.restore();
- }
- ctx.save();
- if(game.time-game.lastGoldEject<.4){ctx.shadowColor='#ffe58a';ctx.shadowBlur=18;}
- ctx.drawImage(dragon,goldOutlet.x-62,goldOutlet.y-53,124,106);ctx.restore();
 
  // 單一兩倍寬接幣口（寶箱橫向拉伸）
  const bayLeft=project(-game.halfWidth,0,FRONT_EXIT.edgeZ,cx).x;
