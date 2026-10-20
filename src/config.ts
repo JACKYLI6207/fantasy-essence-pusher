@@ -37,9 +37,9 @@ export const PRIZE_GATE = (FRONT_EXIT.halfWidth * 2) / 7;
  * = halfWidth，使左右各 7 格無縫接成 14 格等寬，避免中間窄縫。
  */
 export const TWIN_LANE = FRONT_EXIT.halfWidth;
-/** 吐金球龍頭朝內各挪一格後的 X。 */
-export const TWIN_DRAGON_LEFT = -TWIN_LANE + PRIZE_GATE;
-export const TWIN_DRAGON_RIGHT = TWIN_LANE - PRIZE_GATE;
+/** 吐金球龍頭：相對球道中心朝內半格（由「朝內一格」再朝外移半格）。 */
+export const TWIN_DRAGON_LEFT = -TWIN_LANE + PRIZE_GATE * .5;
+export const TWIN_DRAGON_RIGHT = TWIN_LANE - PRIZE_GATE * .5;
 export function twinDragonX(lane: 'left'|'right'|undefined) {
   return lane==='right'?TWIN_DRAGON_RIGHT:lane==='left'?TWIN_DRAGON_LEFT:0;
 }
