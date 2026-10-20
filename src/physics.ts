@@ -228,12 +228,12 @@ export class CoinPusher {
     if(this.autoDrop)this.drop();
     this.pushZ=1.5+(1-Math.cos(this.time*CONFIG.pusherAngularSpeed))*.58;
     this.pusher.setNextKinematicTranslation({x:0,y:.35,z:this.pushZ-2.5});
-    // 橫槓旋轉：左右鏡像，中央同相
+    // 橫槓：左逆時針、右順時針（對畫面），中央正轉
     if(this.spinnerBodies.length){
       const a=this.spinnerAngle,half=a*.5,s=Math.sin(half),c=Math.cos(half);
       for(const body of this.spinnerBodies){
         const x=body.translation().x;
-        const z=x<0?s:x>0?-s:s;
+        const z=x<0?-s:x>0?s:s;
         body.setNextKinematicRotation({x:0,y:0,z,w:c});
       }
     }

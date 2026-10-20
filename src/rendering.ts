@@ -72,7 +72,8 @@ function drawSpinBars(game:CoinPusher,cx:number){
  for(const body of game.spinnerBodies){
   const t=body.translation();
   const p=project(t.x,SPIN_BARS.y,SPIN_BARS.z,cx);
-  const spin=t.x<0?angle:t.x>0?-angle:angle;
+  // canvas 正角＝順時針：左逆時針、右順時針
+  const spin=t.x<0?-angle:t.x>0?angle:angle;
   ctx.save();
   ctx.translate(p.x,p.y);
   ctx.rotate(spin);
