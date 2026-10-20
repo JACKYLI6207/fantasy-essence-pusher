@@ -91,8 +91,8 @@ export class CoinPusher {
     // 收穫籃半寬＝原本靜止時的接珠區（雙機＝中央半床），整籃左右移動
     this.rewardCatchHalf=this.twinTracks?(TWIN_LANE+FRONT_EXIT.halfWidth)*.5:FRONT_EXIT.rewardHalfWidth;
     this.harvestAmp=Math.max(.4,this.halfWidth-this.rewardCatchHalf-.35);
-    // 接珠層從最右起；其餘（含上層）從最左起
-    this.harvestPhase=this.receiveOnly?Math.PI/2:-Math.PI/2;
+    // 堆疊：上層最左、下層最右；單機維持中央起點（測資／接珠區對齊）
+    this.harvestPhase=this.receiveOnly?Math.PI/2:this.twinTracks?-Math.PI/2:0;
     this.harvestX=Math.sin(this.harvestPhase)*this.harvestAmp;
     // 接珠層不摆動綠幣口；其餘出幣口行程跟著幣床半寬
     this.dropAmp=this.receiveOnly?0:3.15*(this.halfWidth/FRONT_EXIT.halfWidth);
