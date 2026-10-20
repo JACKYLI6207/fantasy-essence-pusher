@@ -13,7 +13,9 @@ splitter.src=new URL('./assets/triangle-splitter.png',document.baseURI).href;
 
 const WIDE_W=2048;
 const CAB_H=1536;
-const STACK_H=CAB_H*2;
+/** 只裁下層頂部獅鷲橫幅（紅框），不影響上層收穫籃 */
+const JOIN_CROP=300;
+const STACK_H=CAB_H*2-JOIN_CROP;
 
 export async function loadArtwork(){
  await Promise.all([machine.decode(),atlas.decode(),platform.decode(),bead.decode(),bay.decode(),gold.decode(),gates.decode(),dragon.decode(),pipe.decode(),splitter.decode(),loadSlotArtwork()]);
@@ -74,19 +76,27 @@ function drawTrackDragon(game:CoinPusher,dragonX:number,cx:number,side:'left'|'r
  ctx.drawImage(dragon,goldOutlet.x-62,goldOutlet.y-53,124,106);ctx.restore();
 }
 
-function paintCabinet(game:CoinPusher,opts:{clear?:boolean}={}){
+function paintCabinet(game:CoinPusher,opts:{clear?:boolean;cropTop?:number}={}){
  const wide=game.widthScale>1;
  const twin=game.twinTracks;
  const W=wide?WIDE_W:1024;
  const cx=W/2;
+ const crop=opts.cropTop??0;
  const {pushZ,coins}=game;
 
  if(opts.clear!==false)ctx.clearRect(0,0,W,CAB_H);
- // 連體櫃美術維持橫向拉伸；上方綠幣出幣口只留中央一個
- ctx.drawImage(machine,0,0,W,CAB_H);
+ if(crop>0){
+  // 裁掉下層頂部橫幅；內容上移對齊裁切後美術（上層完整不動）
+  const srcW=machine.naturalWidth||1024;
+  ctx.drawImage(machine,0,crop,srcW,CAB_H-crop,0,0,W,CAB_H-crop);
+  ctx.translate(0,-crop);
+ }else{
+  ctx.drawImage(machine,0,0,W,CAB_H);
+ }
 
- if(twin){
-  // 拉霸維持球道中心對齊；龍頭另朝內挪，不跟著動拉霸
+ if(twin&&game.centerDecor){
+  renderSlot(ctx,game,W/2-512,game.slot);
+ }else if(twin){
   const leftSlotX=project(-TWIN_LANE,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
   const rightSlotX=project(TWIN_LANE,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
   renderSlot(ctx,game,leftSlotX,game.slot);
@@ -104,13 +114,15 @@ function paintCabinet(game:CoinPusher,opts:{clear?:boolean}={}){
   }
  }
 
- // 下層接珠機不畫移動綠幣出幣口
  if(!game.receiveOnly){const dp=project(game.dropX,10.1,0,cx);sprite(2,dp.x,dp.y,100,76);}
  if(twin){
   drawTrackGates(game,-TWIN_LANE,cx,0);
   drawTrackGates(game,TWIN_LANE,cx,7);
-  drawTrackDragon(game,TWIN_DRAGON_LEFT,cx,'left',-TWIN_LANE);
-  drawTrackDragon(game,TWIN_DRAGON_RIGHT,cx,'right',TWIN_LANE);
+  if(game.centerDecor)drawTrackDragon(game,0,cx,'left',0);
+  else{
+   drawTrackDragon(game,TWIN_DRAGON_LEFT,cx,'left',-TWIN_LANE);
+   drawTrackDragon(game,TWIN_DRAGON_RIGHT,cx,'right',TWIN_LANE);
+  }
  }else{
   drawTrackGates(game,0,cx,0);
   drawTrackDragon(game,0,cx,'left');
@@ -185,14 +197,21 @@ function paintCabinet(game:CoinPusher,opts:{clear?:boolean}={}){
    ctx.restore();
  }
  renderCabinetCelebration(ctx,game,W);
+ if(crop>0)ctx.translate(0,crop);
 }
 
 export function render(game:ActiveGame){
  if(isCascadeGame(game)){
   setDisplayLayout(true,true);
   ctx.clearRect(0,0,WIDE_W,STACK_H);
+  // 上層完整（含收穫籃）
   ctx.save();paintCabinet(game.upper,{clear:false});ctx.restore();
-  ctx.save();ctx.translate(0,CAB_H);paintCabinet(game.lower,{clear:false});ctx.restore();
+  // 下層接在上層下方，只裁自己的頂部紅框橫幅，不上移覆蓋上層
+  ctx.save();
+  ctx.translate(0,CAB_H);
+  ctx.beginPath();ctx.rect(0,0,WIDE_W,CAB_H-JOIN_CROP);ctx.clip();
+  paintCabinet(game.lower,{clear:false,cropTop:JOIN_CROP});
+  ctx.restore();
   return;
  }
  setDisplayLayout(isWideGame(game),false);

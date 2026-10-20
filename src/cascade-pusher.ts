@@ -11,7 +11,7 @@ export class CascadePusher {
   readonly stacked=true as const;
   constructor(wallet?:PlayerWallet) {
     const shared=wallet??new PlayerWallet();
-    this.lower=new CoinPusher(undefined,undefined,shared,{widthScale:2,dualSlots:true,receiveOnly:true});
+    this.lower=new CoinPusher(undefined,undefined,shared,{widthScale:2,dualSlots:false,receiveOnly:true,centerDecor:true});
     this.upper=new CoinPusher(undefined,undefined,shared,{
       widthScale:2,
       dualSlots:true,
