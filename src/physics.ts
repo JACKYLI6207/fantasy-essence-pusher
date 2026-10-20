@@ -10,8 +10,6 @@ export type CoinPusherOptions = {
   dualSlots?: boolean;
   /** 下層接珠機：無玩家移動出幣口 */
   receiveOnly?: boolean;
-  /** 僅中央一個龍頭（下層堆疊用） */
-  centerDecor?: boolean;
   /** 左右回收時改交給下層，不計入本機 recycled */
   onRecycle?: (kind:'green'|'gold', x:number)=>void;
 };
@@ -27,7 +25,6 @@ export class CoinPusher {
   readonly dualSlots:boolean;
   readonly twinTracks:boolean;
   readonly receiveOnly:boolean;
-  readonly centerDecor:boolean;
   readonly halfWidth:number;
   readonly rewardHalfWidth:number;
   readonly dropAmp:number;
@@ -74,7 +71,6 @@ export class CoinPusher {
     this.twinTracks=this.widthScale>1;
     this.dualSlots=opts.dualSlots??this.twinTracks;
     this.receiveOnly=!!opts.receiveOnly;
-    this.centerDecor=!!opts.centerDecor;
     this.onRecycle=opts.onRecycle;
     // 雙機幣床要比兩道並排再外擴，才能填滿拉伸機櫃左右視覺區（紅框空角）
     this.halfWidth=this.twinTracks?TWIN_LANE+FRONT_EXIT.halfWidth+1.35:FRONT_EXIT.halfWidth;
@@ -108,7 +104,7 @@ export class CoinPusher {
     this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.5).setTranslation(cx,d.y+.2,d.z)));
     for(const ox of [-.43,.43]) this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.23).setTranslation(cx+ox,d.y-.2,d.z)));
   }
-  private addTrack(cx:number, dragonX:number|null=cx) {
+  private addTrack(cx:number, dragonX=cx) {
     // 與單機相同淨寬：綠珠(r=0.25)／金球(r=0.375)皆可過針陣與七格
     this.box(cx-2.35,5.7,.85,1.45,4.3,.08);this.box(cx+2.35,5.7,.85,1.45,4.3,.08);
     for(let i=1;i<7;i++) this.box(cx-3.65+i*(7.3/7),2.45,.3,.035,.4,.45);
@@ -118,7 +114,7 @@ export class CoinPusher {
       this.world.createCollider(shape.setTranslation(cx+peg.x,peg.y,.25)
         .setFriction(.025).setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min).setRestitution(.28));
     }
-    if(dragonX!==null)this.addDragon(dragonX);
+    this.addDragon(dragonX);
     for(const pipe of [OUTLETS.leftPipe,OUTLETS.pipe]) {
       const px=cx+pipe.x;
       this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.cuboid(.28,.17,.3).setTranslation(px,pipe.y+.4,pipe.z)));
@@ -148,14 +144,8 @@ export class CoinPusher {
     this.box(-hw-.15,5,.2,.12,5,.5);this.box(hw+.15,5,.2,.12,5,.5);
     this.box(-hw-.12,.5,3.5,.12,2.5,4.2);this.box(hw+.12,.5,3.5,.12,2.5,4.2);
     if(this.twinTracks){
-      if(this.centerDecor){
-        this.addTrack(-TWIN_LANE,null);
-        this.addTrack(TWIN_LANE,null);
-        this.addDragon(0);
-      }else{
-        this.addTrack(-TWIN_LANE,TWIN_DRAGON_LEFT);
-        this.addTrack(TWIN_LANE,TWIN_DRAGON_RIGHT);
-      }
+      this.addTrack(-TWIN_LANE,TWIN_DRAGON_LEFT);
+      this.addTrack(TWIN_LANE,TWIN_DRAGON_RIGHT);
     }else{
       this.addTrack(0);
     }
@@ -266,10 +256,10 @@ export class CoinPusher {
         if(left)this.lastLeftEject=this.time;else this.lastRightEject=this.time;
         this.nextEssenceSide=left?'right':'left';
       } else {
-        const dragonX=this.centerDecor?0:this.twinTracks?twinDragonX(bonus.lane):0;
+        const dragonX=this.twinTracks?twinDragonX(bonus.lane):0;
         this.makeCoin(dragonX+OUTLETS.goldSpawn.x,OUTLETS.goldSpawn.y,OUTLETS.goldSpawn.z,true,'gold','bonus');
         this.lastGoldEject=this.time;
-        this.lastGoldEjectLane=this.centerDecor?'left':bonus.lane==='right'?'right':'left';
+        this.lastGoldEjectLane=bonus.lane==='right'?'right':'left';
       }
       this.bonusSpawned++;
       if(bonus.slotPayout){
