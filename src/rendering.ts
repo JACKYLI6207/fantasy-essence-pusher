@@ -200,18 +200,76 @@ function paintCabinet(game:CoinPusher,opts:{clear?:boolean;cropTop?:number}={}){
  if(crop>0)ctx.translate(0,crop);
 }
 
+/** 上下機台銜接帶：柔化硬切縫＋金邊石橋 */
+function paintCascadeJoin(seamY:number){
+ const soft=90,bandH=52,pad=64;
+ // 上下各一段霧化，吃掉硬切線
+ const up=ctx.createLinearGradient(0,seamY-soft,0,seamY);
+ up.addColorStop(0,'rgba(6,14,12,0)');
+ up.addColorStop(.55,'rgba(10,20,17,0.35)');
+ up.addColorStop(1,'rgba(12,22,18,0.72)');
+ ctx.fillStyle=up;ctx.fillRect(0,seamY-soft,WIDE_W,soft);
+ const down=ctx.createLinearGradient(0,seamY,0,seamY+soft);
+ down.addColorStop(0,'rgba(12,22,18,0.72)');
+ down.addColorStop(.45,'rgba(10,20,17,0.35)');
+ down.addColorStop(1,'rgba(6,14,12,0)');
+ ctx.fillStyle=down;ctx.fillRect(0,seamY,WIDE_W,soft);
+
+ // 中央金銅飾帶
+ const y=seamY-bandH/2;
+ const metal=ctx.createLinearGradient(0,y,0,y+bandH);
+ metal.addColorStop(0,'#1a1510');
+ metal.addColorStop(.18,'#8a7040');
+ metal.addColorStop(.42,'#e6d396');
+ metal.addColorStop(.58,'#b8964e');
+ metal.addColorStop(.82,'#8a7040');
+ metal.addColorStop(1,'#1a1510');
+ ctx.fillStyle=metal;
+ ctx.beginPath();
+ ctx.roundRect(pad,y,WIDE_W-pad*2,bandH,14);
+ ctx.fill();
+
+ // 內緣線＋翠綠光縫
+ ctx.strokeStyle='rgba(232,208,144,0.55)';
+ ctx.lineWidth=2;
+ ctx.beginPath();
+ ctx.roundRect(pad+6,y+6,WIDE_W-pad*2-12,bandH-12,10);
+ ctx.stroke();
+ const glow=ctx.createLinearGradient(pad+24,seamY-4,WIDE_W-pad-24,seamY+4);
+ glow.addColorStop(0,'rgba(55,230,150,0)');
+ glow.addColorStop(.2,'rgba(75,255,170,0.55)');
+ glow.addColorStop(.5,'rgba(120,255,200,0.85)');
+ glow.addColorStop(.8,'rgba(75,255,170,0.55)');
+ glow.addColorStop(1,'rgba(55,230,150,0)');
+ ctx.fillStyle=glow;
+ ctx.fillRect(pad+24,seamY-3,WIDE_W-pad*2-48,6);
+
+ // 兩側石柱銜接塊（取機櫃側壁紋理）
+ const capW=110,capH=bandH+28,srcW=machine.naturalWidth||1024;
+ for(const [sx,dx] of [[40,pad-18],[srcW-150,WIDE_W-pad-capW+18]] as const){
+  ctx.save();
+  ctx.beginPath();ctx.roundRect(dx,seamY-capH/2,capW,capH,12);ctx.clip();
+  ctx.drawImage(machine,sx,620,110,90,dx,seamY-capH/2,capW,capH);
+  ctx.restore();
+  ctx.strokeStyle='rgba(194,167,100,0.45)';
+  ctx.lineWidth=2;
+  ctx.beginPath();ctx.roundRect(dx,seamY-capH/2,capW,capH,12);ctx.stroke();
+ }
+}
+
 export function render(game:ActiveGame){
  if(isCascadeGame(game)){
   setDisplayLayout(true,true);
   ctx.clearRect(0,0,WIDE_W,STACK_H);
   // 上層完整（含收穫籃）
   ctx.save();paintCabinet(game.upper,{clear:false});ctx.restore();
-  // 下層接在上層下方，只裁自己的頂部紅框橫幅，不上移覆蓋上層
+  // 下層接在上層下方，只裁自己的頂部橫幅
   ctx.save();
   ctx.translate(0,CAB_H);
   ctx.beginPath();ctx.rect(0,0,WIDE_W,CAB_H-JOIN_CROP);ctx.clip();
   paintCabinet(game.lower,{clear:false,cropTop:JOIN_CROP});
   ctx.restore();
+  paintCascadeJoin(CAB_H);
   return;
  }
  setDisplayLayout(isWideGame(game),false);
