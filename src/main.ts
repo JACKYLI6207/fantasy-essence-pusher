@@ -20,7 +20,7 @@ function updateUI() {
   autoButton.disabled=game.gold<CONFIG.essenceCost;
   autoButton.setAttribute('aria-pressed',String(game.autoDrop));
   autoButton.textContent=game.autoDrop?'停止自動投入':'開啟自動投入';
-  $('auto-status').textContent=game.gold<CONFIG.essenceCost?'金幣不足，已停止投入':game.autoDrop?'自動投入中 · 每秒最多 2 顆 · 每顆 1 金幣':'1 金幣 = 1 精華 · 每秒最多 2 顆';
+  $('auto-status').textContent=game.gold<CONFIG.essenceCost?'金幣不足，已停止投入；精華入箱可回補金幣':game.autoDrop?'自動投入中 · 每秒最多 2 顆 · 每顆 1 金幣':'1 金幣投入 1 精華 · 精華入箱返還 1 金幣';
   const message=marqueeMessage(game.slot);
   if($('machine-announcement').textContent!==message)$('machine-announcement').textContent=message;
   $('slot-status').textContent=game.slot.remaining>0?`SLOT 派珠中 · 尚餘 ${game.slot.remaining} 顆${game.slot.queue>0?` · 待轉 ${game.slot.queue} 次`:''}`:game.slot.phase==='spinning'?`SLOT 旋轉中${game.slot.queue>0?` · 待轉 ${game.slot.queue} 次`:''}`:'龍珠落入中央寶箱可啟動 SLOT';

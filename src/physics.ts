@@ -10,6 +10,7 @@ export class CoinPusher {
   coins: Coin[] = [];
   initialCount=0;
   gold=CONFIG.startingGold;
+  earnedGold=0;
   autoDrop=false;
   time = 0;
   dropped = 0;
@@ -56,7 +57,7 @@ export class CoinPusher {
     this.bonusSpawned=0;this.pendingBonuses=[];this.slotLights=Array(7).fill(-1000);this.lastGreenEject=-1000;this.lastGoldEject=-1000;
     this.lastLeftEject=-1000;this.lastRightEject=-1000;this.nextEssenceSide='left';
     this.outletColliders=[];
-    this.gold=CONFIG.startingGold;this.autoDrop=false;
+    this.gold=CONFIG.startingGold;this.earnedGold=0;this.autoDrop=false;
     this.slot.reset();
     this.box(0,-.22,3.15,3.65,.22,3.65);
     const points:number[]=[];
@@ -157,6 +158,7 @@ export class CoinPusher {
           if(coin.exitZone==='reward') {
             this.won++;this.lastRewardTime=this.time;
             if(coin.kind==='gold')this.slot.trigger();
+            else {this.gold+=CONFIG.essenceReturnGold;this.earnedGold+=CONFIG.essenceReturnGold;}
           }
           else this.recycled++;
         }
