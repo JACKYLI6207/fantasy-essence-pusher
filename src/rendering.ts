@@ -1,4 +1,4 @@
-import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, OUTLETS, SPLITTER } from './config.ts';
+import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, OUTLETS, SPLITTER, TWIN_LANE } from './config.ts';
 import type { CoinPusher } from './physics.ts';
 import {isWideGame,type ActiveGame} from './dual-pusher.ts';
 import {loadSlotArtwork,renderSlot,renderCabinetCelebration} from './slot-rendering.ts';
@@ -12,6 +12,8 @@ gold.src=new URL('./assets/gold-bead.png',document.baseURI).href;gates.src=new U
 splitter.src=new URL('./assets/triangle-splitter.png',document.baseURI).href;
 
 const WIDE_W=2048;
+/** 裁掉左右櫃內側外框，讓上半球道並排但不畫中間分隔槓 */
+const JOIN=96;
 
 export async function loadArtwork(){
  await Promise.all([machine.decode(),atlas.decode(),platform.decode(),bead.decode(),bay.decode(),gold.decode(),gates.decode(),dragon.decode(),pipe.decode(),splitter.decode(),loadSlotArtwork()]);
@@ -39,39 +41,13 @@ function sprite(kind:number,x:number,y:number,w:number,h:number,angle=0){
  ctx.drawImage(atlas,sx*scale,sy*scale,sw*scale,sh*scale,-w/2,-h/2,w,h);ctx.restore();
 }
 
-function paintCabinet(game:CoinPusher){
- const wide=game.widthScale>1;
- const W=wide?WIDE_W:1024;
- const cx=W/2;
- const sx=game.widthScale;
- const {dropX,pushZ,coins}=game;
-
- ctx.clearRect(0,0,W,1536);
- // 連體櫃：整張機台美術橫向拉伸成一座，不要中間分界
- ctx.drawImage(machine,0,0,W,1536);
-
- if(wide){
-  renderSlot(ctx,game,W*0.05,game.slot);
-  renderSlot(ctx,game,W*0.05+900,game.slotB);
- }else renderSlot(ctx,game);
-
- for(const peg of pegs){
-  const p=project(peg.x*sx,peg.y,.25,cx),size=24*(peg.radius ?? .105)/.105;
-  sprite(1,p.x,p.y,size,size);
- }
- if(wide){
-  for(const x of [-4.2,-1.4,1.4,4.2]){
-   const p=project(x,6.65,.25,cx);sprite(1,p.x,p.y,24,24);
-  }
- }
-
- const dp=project(dropX,10.1,0,cx);sprite(2,dp.x,dp.y,100,76);
- const gateLeft=project(-game.halfWidth,2.45,.25,cx).x;
- const gateRight=project(game.halfWidth,2.45,.25,cx).x;
+function drawGates(game:CoinPusher,laneCenter:number,cx:number,lightBase:number){
+ const gateLeft=project(laneCenter-FRONT_EXIT.halfWidth,2.45,.25,cx).x;
+ const gateRight=project(laneCenter+FRONT_EXIT.halfWidth,2.45,.25,cx).x;
  const gateWidth=(gateRight-gateLeft)/7;
  for(let i=0;i<7;i++) {
    const x=gateLeft+i*gateWidth,gs=gates.naturalWidth/2048;
-   const active=game.time-game.slotLights[i]<.8;
+   const active=game.time-game.slotLights[lightBase+i]<.8;
    ctx.save();
    if(active) {ctx.shadowColor=PRIZE_SLOTS[i]==='gold'?'#ffcc55':'#7bffba';ctx.shadowBlur=18;}
    ctx.drawImage(gates,879*gs,160*gs,30*gs,365*gs,x-5,702,10,76);
@@ -82,6 +58,67 @@ function paintCabinet(game:CoinPusher){
      ctx.drawImage(art,x+gateWidth/2-size/2,764,size,size);
    }
    ctx.restore();
+ }
+}
+
+function drawDragonOutlet(game:CoinPusher,laneCenter:number,cx:number,isLeft:boolean){
+ const goldOutlet=project(laneCenter+OUTLETS.dragon.x,OUTLETS.dragon.y,OUTLETS.dragon.z,cx);
+ for(const [outlet,flip,last] of [[OUTLETS.leftPipe,true,game.lastLeftEject],[OUTLETS.pipe,false,game.lastRightEject]] as const) {
+   // 只畫該球道「外側」管：左球道畫左管、右球道畫右管；內側也畫以保持對稱
+   const p=project(laneCenter+outlet.x,outlet.y,outlet.z,cx);
+   ctx.save();ctx.translate(p.x,p.y);if(flip)ctx.scale(-1,1);
+   if(game.time-last<.18){ctx.shadowColor='#7bffb5';ctx.shadowBlur=18;}
+   ctx.drawImage(pipe,-62,-31,124,62);ctx.restore();
+ }
+ ctx.save();
+ if(game.time-game.lastGoldEject<.4 && game.lastGoldEjectLane===(isLeft?'left':'right')){
+  ctx.shadowColor='#ffe58a';ctx.shadowBlur=18;
+ }
+ ctx.drawImage(dragon,goldOutlet.x-62,goldOutlet.y-53,124,106);ctx.restore();
+}
+
+function paintCabinet(game:CoinPusher){
+ const twin=game.twinTracks;
+ const W=twin?WIDE_W:1024;
+ const cx=W/2;
+ const {pushZ,coins}=game;
+
+ ctx.clearRect(0,0,W,1536);
+ if(twin){
+  // 左右各貼原尺寸機櫃美術（裁內側框），不上中間分隔槓
+  const halfW=1024-JOIN;
+  ctx.drawImage(machine,0,0,halfW,1536,0,0,halfW,1536);
+  ctx.drawImage(machine,JOIN,0,halfW,1536,halfW,0,halfW,1536);
+  // 下方幣池帶柔和銜接，避免硬縫
+  const g=ctx.createLinearGradient(halfW-40,900,halfW+40,900);
+  g.addColorStop(0,'rgba(12,24,20,0)');g.addColorStop(.5,'rgba(18,32,26,0.35)');g.addColorStop(1,'rgba(12,24,20,0)');
+  ctx.fillStyle=g;ctx.fillRect(halfW-50,860,100,320);
+ }else ctx.drawImage(machine,0,0,1024,1536);
+
+ if(twin){
+  renderSlot(ctx,game,0,game.slot);
+  renderSlot(ctx,game,1024,game.slotB);
+ }else renderSlot(ctx,game);
+
+ const lanes=twin?[-TWIN_LANE,TWIN_LANE]:[0];
+ for(const lane of lanes){
+  for(const peg of pegs){
+   const p=project(lane+peg.x,peg.y,.25,cx),size=24*(peg.radius ?? .105)/.105;
+   sprite(1,p.x,p.y,size,size);
+  }
+ }
+
+ if(twin){
+  sprite(2,project(game.dropXLeft,10.1,0,cx).x,project(game.dropXLeft,10.1,0,cx).y,100,76);
+  sprite(2,project(game.dropXRight,10.1,0,cx).x,project(game.dropXRight,10.1,0,cx).y,100,76);
+  drawGates(game,-TWIN_LANE,cx,0);
+  drawGates(game,TWIN_LANE,cx,7);
+  drawDragonOutlet(game,-TWIN_LANE,cx,true);
+  drawDragonOutlet(game,TWIN_LANE,cx,false);
+ }else{
+  const dp=project(game.dropX,10.1,0,cx);sprite(2,dp.x,dp.y,100,76);
+  drawGates(game,0,cx,0);
+  drawDragonOutlet(game,0,cx,true);
  }
 
  const frontY=project(0,.7,pushZ,cx).y;
@@ -97,18 +134,7 @@ function paintCabinet(game:CoinPusher){
  ctx.drawImage(platform,28*artScale,430*artScale,1990*artScale,140*artScale,shelfLeft-40,frontY,shelfW+80,32);
  ctx.restore();
 
- // 單一中央龍頭出幣口
- const goldOutlet=project(OUTLETS.dragon.x,OUTLETS.dragon.y,OUTLETS.dragon.z,cx);
- for(const [outlet,left,last] of [[OUTLETS.leftPipe,true,game.lastLeftEject],[OUTLETS.pipe,false,game.lastRightEject]] as const) {
-   const p=project(outlet.x*sx,outlet.y,outlet.z,cx);ctx.save();ctx.translate(p.x,p.y);if(left)ctx.scale(-1,1);
-   if(game.time-last<.18){ctx.shadowColor='#7bffb5';ctx.shadowBlur=18;}
-   ctx.drawImage(pipe,-62,-31,124,62);ctx.restore();
- }
- ctx.save();
- if(game.time-game.lastGoldEject<.4){ctx.shadowColor='#ffe58a';ctx.shadowBlur=18;}
- ctx.drawImage(dragon,goldOutlet.x-62,goldOutlet.y-53,124,106);ctx.restore();
-
- // 單一兩倍寬接幣口（寶箱橫向拉伸）
+ // 單一橫向接幣口（兩倍寬）
  const bayLeft=project(-game.halfWidth,0,FRONT_EXIT.edgeZ,cx).x;
  const bayRight=project(game.halfWidth,0,FRONT_EXIT.edgeZ,cx).x;
  const bayWidth=bayRight-bayLeft,bayTop=1174,bayHeight=300;

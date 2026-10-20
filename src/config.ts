@@ -29,10 +29,21 @@ export function prizeSlotIndex(x: number, halfWidth = 3.65) {
   return Math.max(0,Math.min(6,Math.floor((x+halfWidth)/(span/7))));
 }
 export const FRONT_EXIT = { halfWidth: 3.65, rewardHalfWidth: 1.825, edgeZ: 6.8 };
+/** 雙命運殿：左右兩套原尺寸球道的中心 X（不是把單道拉寬）。 */
+export const TWIN_LANE = 3.85;
 export type ExitZone = 'reward' | 'recycle';
 // A bead centred exactly on a divider belongs to the outer recovery zone.
 export function classifyFrontExit(x: number, rewardHalfWidth = FRONT_EXIT.rewardHalfWidth): ExitZone {
   return Math.abs(x) < rewardHalfWidth ? 'reward' : 'recycle';
+}
+export function twinLaneCenter(x: number) {
+  return x < 0 ? -TWIN_LANE : TWIN_LANE;
+}
+export function classifyTwinFrontExit(x: number): ExitZone {
+  return Math.abs(x - twinLaneCenter(x)) < FRONT_EXIT.rewardHalfWidth ? 'reward' : 'recycle';
+}
+export function twinPrizeSlotIndex(x: number) {
+  return prizeSlotIndex(x - twinLaneCenter(x), FRONT_EXIT.halfWidth);
 }
 // Offset upper rows intercept one another's vertical gaps. The lower rows
 // retain clearance for gold beads emitted beneath the dragon.
