@@ -51,8 +51,12 @@ export function classifyFrontExit(x: number, rewardHalfWidth = FRONT_EXIT.reward
 export function twinLaneCenter(x: number) {
   return x < 0 ? -TWIN_LANE : TWIN_LANE;
 }
-export function classifyTwinFrontExit(x: number): ExitZone {
-  return Math.abs(x - twinLaneCenter(x)) < FRONT_EXIT.rewardHalfWidth ? 'reward' : 'recycle';
+/**
+ * 連體寬機共用收穫籃：中央一半為獎勵（入箱），左右外側為回收坑。
+ * （勿用左右球道中心判定，否則正中收穫籃會被誤判成回收。）
+ */
+export function classifyTwinFrontExit(x: number, bedHalfWidth = TWIN_LANE + FRONT_EXIT.halfWidth): ExitZone {
+  return Math.abs(x) < bedHalfWidth * 0.5 ? 'reward' : 'recycle';
 }
 export function twinPrizeSlotIndex(x: number) {
   return prizeSlotIndex(x - twinLaneCenter(x), FRONT_EXIT.halfWidth);

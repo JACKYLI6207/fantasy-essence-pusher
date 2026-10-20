@@ -228,7 +228,7 @@ export class CoinPusher {
         }
       }
       if(coin.entered && coin.exitZone===null && p.y<0 && p.z>6.65) {
-        coin.exitZone=this.twinTracks?classifyTwinFrontExit(p.x):classifyFrontExit(p.x);
+        coin.exitZone=this.twinTracks?classifyTwinFrontExit(p.x,this.halfWidth):classifyFrontExit(p.x);
       }
       const collectionY=coin.exitZone==='recycle'?-6.1:-1.8;
       if(p.y<collectionY || (!coin.entered && coin.age>180)) {
