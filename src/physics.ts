@@ -86,8 +86,8 @@ export class CoinPusher {
     // 雙機幣床要比兩道並排再外擴，才能填滿拉伸機櫃左右視覺區（紅框空角）
     this.halfWidth=this.twinTracks?TWIN_LANE+FRONT_EXIT.halfWidth+1.35:FRONT_EXIT.halfWidth;
     this.rewardHalfWidth=FRONT_EXIT.rewardHalfWidth;
-    // 收穫籃接珠半寬；擺幅讓籃可掃過床面但不貼牆
-    this.rewardCatchHalf=FRONT_EXIT.rewardHalfWidth*(this.twinTracks?1.2:1);
+    // 收穫籃半寬＝原本靜止時的接珠區（雙機＝中央半床），整籃左右移動
+    this.rewardCatchHalf=this.twinTracks?(TWIN_LANE+FRONT_EXIT.halfWidth)*.5:FRONT_EXIT.rewardHalfWidth;
     this.harvestAmp=Math.max(.4,this.halfWidth-this.rewardCatchHalf-.35);
     // 接珠層不摆動綠幣口；其餘出幣口行程跟著幣床半寬
     this.dropAmp=this.receiveOnly?0:3.15*(this.halfWidth/FRONT_EXIT.halfWidth);

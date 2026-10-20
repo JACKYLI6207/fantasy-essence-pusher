@@ -169,14 +169,11 @@ function paintCabinet(game:CoinPusher,opts:{clear?:boolean;cropTop?:number}={}){
  ctx.drawImage(platform,28*artScale,430*artScale,1990*artScale,140*artScale,shelfLeft-20,frontY,shelfW+40,32);
  ctx.restore();
 
- // 接幣口全寬底；收穫籃（寶箱）跟隨 harvestX 左右移動
- const bayLeft=project(-game.halfWidth,0,FRONT_EXIT.edgeZ,cx).x;
- const bayRight=project(game.halfWidth,0,FRONT_EXIT.edgeZ,cx).x;
+ // 原本收穫籃（treasure-bay）整組跟著 harvestX 移動；不另畫新籃、不留靜止全寬底籃
+ const bayLeft=project(game.harvestX-game.rewardCatchHalf,0,FRONT_EXIT.edgeZ,cx).x;
+ const bayRight=project(game.harvestX+game.rewardCatchHalf,0,FRONT_EXIT.edgeZ,cx).x;
  const bayWidth=bayRight-bayLeft,bayTop=1174,bayHeight=300;
  ctx.drawImage(bay,bayLeft,bayTop,bayWidth,bayHeight);
- const catchL=project(game.harvestX-game.rewardCatchHalf,0,FRONT_EXIT.edgeZ,cx).x;
- const catchR=project(game.harvestX+game.rewardCatchHalf,0,FRONT_EXIT.edgeZ,cx).x;
- const chestW=Math.max(120,catchR-catchL),chestX=(catchL+catchR)/2-chestW/2;
 
  const depth=(coin:typeof coins[number])=>{const p=coin.body.translation();return coin.entered?p.z*51+p.y*25:-p.y*48;};
  const ordered=[...coins].sort((a,b)=>depth(a)-depth(b));
@@ -185,6 +182,7 @@ function paintCabinet(game:CoinPusher,opts:{clear?:boolean;cropTop?:number}={}){
    const p=project(SPLITTER.x,SPLITTER.height/2,SPLITTER.z,cx);
    ctx.drawImage(splitter,p.x-22*SPLITTER.scale,p.y-21*SPLITTER.scale,44*SPLITTER.scale,42*SPLITTER.scale);splitterDrawn=true;
  };
+ // 幣床是透視梯形：若用 z=0 的矩形裁切，前方左右會被切成空三角
  const bedBackL=project(-game.halfWidth-0.2,.7,0,cx).x;
  const bedBackR=project(game.halfWidth+0.2,.7,0,cx).x;
  const bedFrontL=project(-game.halfWidth-0.2,0,FRONT_EXIT.edgeZ,cx).x;
@@ -210,18 +208,18 @@ function paintCabinet(game:CoinPusher,opts:{clear?:boolean;cropTop?:number}={}){
  ctx.restore();
 
  const bw=bay.naturalWidth,bh=bay.naturalHeight;
- ctx.drawImage(bay,bw*.25,bh*.35,bw*.5,bh*.65,chestX,bayTop+bayHeight*.35,chestW,bayHeight*.65);
+ ctx.drawImage(bay,bw*.25,bh*.35,bw*.5,bh*.65,bayLeft+bayWidth*.25,bayTop+bayHeight*.35,bayWidth*.5,bayHeight*.65);
  ctx.drawImage(bay,0,bh*.91,bw,bh*.09,bayLeft,bayTop+bayHeight*.91,bayWidth,bayHeight*.09);
  const elapsed=game.time-game.lastRewardTime;
  if(elapsed>=0 && elapsed<1.6) {
    const brightness=Math.pow(1-elapsed/1.6,1.6);
-   const gx=(catchL+catchR)/2,gy=bayTop+bayHeight*.61;
+   const gx=(bayLeft+bayRight)/2,gy=bayTop+bayHeight*.61;
    ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha=brightness;
    const halo=ctx.createRadialGradient(gx,gy,8,gx,gy,86);
    halo.addColorStop(0,'rgba(111,255,185,.85)');halo.addColorStop(.4,'rgba(39,236,135,.4)');halo.addColorStop(1,'rgba(28,221,123,0)');
    ctx.fillStyle=halo;ctx.fillRect(gx-86,gy-86,172,172);
    ctx.beginPath();ctx.ellipse(gx,gy,30,43,0,0,Math.PI*2);ctx.clip();
-   ctx.filter='brightness(3.5) saturate(2)';ctx.drawImage(bay,chestX,bayTop,chestW,bayHeight);
+   ctx.filter='brightness(3.5) saturate(2)';ctx.drawImage(bay,bayLeft,bayTop,bayWidth,bayHeight);
    ctx.restore();
  }
  renderCabinetCelebration(ctx,game,W);
