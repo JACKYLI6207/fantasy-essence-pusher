@@ -5,11 +5,9 @@
 <header class="app-header"><div><span class="eyebrow">FANTASY ARCADE</span><h1 id="page-title">冒險大廳</h1><p id="page-subtitle">選擇一台機台，展開你的下一段冒險。</p></div><div class="lobby-wallet" id="lobby-wallet"><span>共用金幣</span><strong id="lobby-gold">1,000</strong><small>本機保存 · 所有機台共用</small></div></header>
 <nav id="machine-nav" class="return-nav" hidden><button id="back-to-lobby" class="back-button">← 返回大廳</button><span>離開機台將重置盤面，金幣保留</span></nav>
 <section id="lobby-screen" class="lobby-screen" aria-label="冒險大廳">
-  <div class="lobby-intro"><div><span class="eyebrow">CHOOSE YOUR ADVENTURE</span><h2>每段冒險，從這裡開始。</h2><p>挑選機台，讓精華與龍珠帶你探索秘境。</p></div><span class="available-count">01 台機台開放中</span></div>
-  <article class="machine-card">
-    <div class="machine-card-art"><img id="machine-preview" src="./assets/machine.png" alt="秘境金庫奇幻機台預覽"><span class="machine-number">MACHINE 01</span><span class="open-badge">開放遊玩</span></div>
-    <div class="machine-card-info"><span class="eyebrow">奇幻冒險 · 推珠 × SLOT</span><h3 id="machine-card-name">秘境金庫</h3><p id="machine-card-description">讓精華穿越針陣，喚醒龍珠，開啟寶箱裡的命運。</p><div class="machine-tags"><span>1 金幣 / 精華</span><span>龍珠 SLOT</span><span>隨機盤面</span></div><div class="machine-card-rule"><span>每次入場，都是新的盤面</span><p>精華入箱返還金幣。離開時機台進度與未派獎勵清除，已持有金幣保留。</p></div><button id="enter-machine">進入機台 →</button><p id="lobby-error" class="hint" role="alert"></p></div>
-  </article>
+  <div class="lobby-intro"><div><span class="eyebrow">CHOOSE YOUR ADVENTURE</span><h2>每段冒險，從這裡開始。</h2><p>挑選機台，讓精華與龍珠帶你探索秘境。</p></div><span class="available-count" id="available-count">02 台機台開放中</span></div>
+  <div class="machine-card-list" id="machine-card-list"></div>
+  <p id="lobby-error" class="hint" role="alert"></p>
   <p class="lobby-footnote">金幣儲存在目前瀏覽器。機台不保存盤面，重新進入會重新佈置。</p>
 </section>
 <main id="machine-screen" hidden>

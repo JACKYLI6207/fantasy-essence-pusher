@@ -5,3 +5,7 @@ dist/
 
 preview*.png
 
+_gh-login-*.txt
+搞定.bat
+1-登入GitHub並部署.bat
+deploy-github-pages.ps1
