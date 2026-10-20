@@ -24,6 +24,23 @@
     <button id="auto-drop" class="auto-button" aria-pressed="false" disabled>開啟自動投入</button>
     <p id="auto-status" class="hint" role="status">1 金幣投入 1 精華 · 精華入箱返還 1 金幣</p>
     <p id="slot-status" class="hint">龍珠入箱啟動 SLOT</p>
+    <section class="speed-panel" aria-labelledby="speed-panel-title">
+      <div class="speed-panel-head">
+        <div><span class="eyebrow">TIME CONTROL</span><h3 id="speed-panel-title">遊戲倍速</h3></div>
+        <strong id="time-scale-display" class="speed-readout" aria-live="polite">1×</strong>
+      </div>
+      <div class="speed-stepper" role="group" aria-label="調整倍速">
+        <button type="button" id="time-scale-down" class="speed-step">− 減半</button>
+        <button type="button" id="time-scale-reset" class="speed-step speed-step-reset">1× 即時</button>
+        <button type="button" id="time-scale-up" class="speed-step">＋ 加倍</button>
+      </div>
+      <div class="speed-presets" id="time-scale-presets" role="group" aria-label="常用倍速"></div>
+      <label class="speed-field-label" for="time-scale-slider">拖曳滑桿（0.01×～1000×）</label>
+      <input id="time-scale-slider" class="speed-slider" type="range" min="0" max="100" step="0.05" value="50" aria-valuemin="0.01" aria-valuemax="1000" aria-valuetext="1×">
+      <label class="speed-field-label" for="time-scale">自訂倍率</label>
+      <input id="time-scale" class="speed-number" type="number" min="0.01" max="1000" step="any" value="1" inputmode="decimal" aria-describedby="time-scale-hint">
+      <p id="time-scale-hint" class="hint">1× 即時 · 物理、SLOT、自動投入同步加速</p>
+    </section>
     <span id="status">物理引擎準備中</span>
   </div>
   <details class="adventure-details" id="adventure-details">

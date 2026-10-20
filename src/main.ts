@@ -6,6 +6,7 @@ import {marqueeMessage} from './celebration.ts';
 import {PlayerWallet,type WalletStorage} from './wallet.ts';
 import {ArcadeSession} from './arcade-session.ts';
 import {MACHINES,type MachineId} from './machines.ts';
+import {formatTimeScale,getGameTimeScale,isPresetScale,maxPhysicsStepsPerFrame,scaleToSlider,setGameTimeScale,sliderToScale,TIME_SCALE_PRESETS} from './time-scale.ts';
 import './style.css';
 
 const $=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
@@ -28,8 +29,29 @@ function updateUI(){
  $('auto-status').textContent=game.gold<CONFIG.essenceCost?'金幣不足，已停止投入；精華入箱可回補金幣':game.autoDrop?'自動投入中 · 每秒最多 2 顆 · 每顆 1 金幣':'1 金幣投入 1 精華 · 精華入箱返還 1 金幣';
  const message=marqueeMessage(game.slot);if($('machine-announcement').textContent!==message)$('machine-announcement').textContent=message;
  $('slot-status').textContent=game.slot.remaining>0?`SLOT 派珠中 · 尚餘 ${game.slot.remaining} 顆${game.slot.queue>0?` · 待轉 ${game.slot.queue} 次`:''}`:game.slot.phase==='spinning'?`SLOT 旋轉中${game.slot.queue>0?` · 待轉 ${game.slot.queue} 次`:''}`:'龍珠落入中央寶箱可啟動 SLOT';
- $('status').textContent=`運作中 · ${game.coins.length} 顆精華 · ${game.coins.length>=CONFIG.maxCoins?'珠床已滿，請等待回收':'點擊或空白鍵投幣'}`;
+ const scale=getGameTimeScale();
+ const speedNote=scale===1?'':` · 倍速 ${formatTimeScale(scale)}`;
+ $('status').textContent=`運作中 · ${game.coins.length} 顆精華 · ${game.coins.length>=CONFIG.maxCoins?'珠床已滿，請等待回收':'點擊或空白鍵投幣'}${speedNote}`;
+ syncTimeScaleUI();
 }
+function commitTimeScale(value:number){
+ setGameTimeScale(value);syncTimeScaleUI();
+ if(session.game&&!session.leaveRequested)updateUI();
+}
+function syncTimeScaleUI(){
+ const scale=getGameTimeScale(),label=formatTimeScale(scale);
+ $('time-scale-display').textContent=label;
+ const input=$<HTMLInputElement>('time-scale'),slider=$<HTMLInputElement>('time-scale-slider');
+ if(document.activeElement!==input)input.value=String(scale);
+ if(document.activeElement!==slider){slider.value=String(scaleToSlider(scale));slider.setAttribute('aria-valuetext',label);}
+ for(const button of $<HTMLDivElement>('time-scale-presets').querySelectorAll<HTMLButtonElement>('.speed-preset')){
+  const preset=Number(button.dataset.scale);
+  button.setAttribute('aria-pressed',String(isPresetScale(scale,preset)));
+ }
+ $('time-scale-hint').textContent=scale===1?'1× 即時 · 物理、SLOT、自動投入同步加速':`${label} · 遊戲時間加速中（可隨時調整）`;
+}
+function applyTimeScaleFromInput(){commitTimeScale(Number($<HTMLInputElement>('time-scale').value));}
+function applyTimeScaleFromSlider(){commitTimeScale(sliderToScale(Number($<HTMLInputElement>('time-scale-slider').value)));}
 function showLobby(){
  $('lobby-screen').hidden=false;$('machine-screen').hidden=true;$('lobby-wallet').hidden=false;$('machine-nav').hidden=true;
  $('page-title').textContent='冒險大廳';$('page-subtitle').textContent='選擇一台機台，展開你的下一段冒險。';document.title='冒險大廳 · 秘境金庫';syncWallet();resetClock();
@@ -62,13 +84,29 @@ function confirmLeave(){
 }
 function drop(){if(session.game&&!document.hidden&&!session.leaveRequested){session.game.drop();updateUI();}}
 function frame(ms:number){
- if(!previous)previous=ms;const delta=Math.min((ms-previous)/1000,.1);previous=ms;
+ if(!previous)previous=ms;
+ const scale=getGameTimeScale();
+ const delta=Math.min((ms-previous)/1000,.1*Math.max(1,scale));previous=ms;
  if(session.game&&!document.hidden&&!session.leaveRequested){
-  accumulator+=delta;while(accumulator>=CONFIG.fixedStep){session.step();accumulator-=CONFIG.fixedStep;}
+  accumulator+=delta*scale;
+  let steps=0;const limit=maxPhysicsStepsPerFrame(scale);
+  while(accumulator>=CONFIG.fixedStep&&steps<limit){session.step();accumulator-=CONFIG.fixedStep;steps++;}
   render(session.game);updateUI();
  }
  requestAnimationFrame(frame);
 }
+for(const preset of TIME_SCALE_PRESETS){
+ const button=document.createElement('button');button.type='button';button.className='speed-preset';button.dataset.scale=String(preset);
+ button.textContent=formatTimeScale(preset);button.setAttribute('aria-pressed','false');
+ button.addEventListener('click',()=>commitTimeScale(preset));$<HTMLDivElement>('time-scale-presets').append(button);
+}
+syncTimeScaleUI();
+$('time-scale-down').addEventListener('click',()=>commitTimeScale(getGameTimeScale()*.5));
+$('time-scale-up').addEventListener('click',()=>commitTimeScale(getGameTimeScale()*2));
+$('time-scale-reset').addEventListener('click',()=>commitTimeScale(1));
+$('time-scale').addEventListener('change',applyTimeScaleFromInput);
+$('time-scale').addEventListener('input',applyTimeScaleFromInput);
+$('time-scale-slider').addEventListener('input',applyTimeScaleFromSlider);
 $('drop').addEventListener('click',drop);
 $('auto-drop').addEventListener('click',()=>{if(session.game&&!document.hidden&&!session.leaveRequested){session.game.setAutoDrop(!session.game.autoDrop);updateUI();}});
 $('enter-machine').addEventListener('click',()=>{void enterMachine(MACHINES[0].id);});
