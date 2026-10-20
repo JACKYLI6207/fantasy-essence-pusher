@@ -116,12 +116,14 @@ function paintCabinet(game:CoinPusher){
  const shelfLeft=project(-game.halfWidth,.7,pushZ,cx).x;
  const shelfRight=project(game.halfWidth,.7,pushZ,cx).x;
  const shelfW=shelfRight-shelfLeft;
+ // 平台外擴跟幣床對齊，避免左右多畫出沒珠的空角
+ const flare=twin?28:80;
  ctx.save();
  ctx.beginPath();
- ctx.moveTo(shelfLeft-20,823);ctx.lineTo(shelfRight+20,823);
- ctx.lineTo(shelfRight+80,1178);ctx.lineTo(shelfLeft-80,1178);ctx.closePath();ctx.clip();
- ctx.drawImage(platform,28*artScale,166*artScale,1990*artScale,264*artScale,shelfLeft-40,801,shelfW+80,frontY-801);
- ctx.drawImage(platform,28*artScale,430*artScale,1990*artScale,140*artScale,shelfLeft-40,frontY,shelfW+80,32);
+ ctx.moveTo(shelfLeft-12,823);ctx.lineTo(shelfRight+12,823);
+ ctx.lineTo(shelfRight+flare,1178);ctx.lineTo(shelfLeft-flare,1178);ctx.closePath();ctx.clip();
+ ctx.drawImage(platform,28*artScale,166*artScale,1990*artScale,264*artScale,shelfLeft-20,801,shelfW+40,frontY-801);
+ ctx.drawImage(platform,28*artScale,430*artScale,1990*artScale,140*artScale,shelfLeft-20,frontY,shelfW+40,32);
  ctx.restore();
 
  // 單一兩倍寬接幣口（寶箱橫向拉伸）

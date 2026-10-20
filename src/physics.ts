@@ -2,7 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { SlotMachine } from './slot.ts';
 import {createInitialLayout} from './initial-layout.ts';
 import {PlayerWallet} from './wallet.ts';
-import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex, twinDragonX, type ExitZone } from './config.ts';
+import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, FRONT_EXIT, prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex, twinDragonX, type ExitZone } from './config.ts';
 
 export type Coin = { body: RAPIER.RigidBody; entered: boolean; age: number; lowestY: number; stalledFor: number; exitZone: ExitZone | null; kind:'green'|'gold'; source:'player'|'bonus'|'bed'; slotChecked:boolean };
 export type CoinPusherOptions = { widthScale?: number; dualSlots?: boolean };
@@ -59,11 +59,11 @@ export class CoinPusher {
     this.widthScale=opts.widthScale??1;
     this.twinTracks=this.widthScale>1;
     this.dualSlots=opts.dualSlots??this.twinTracks;
-    // 下方幣池仍兩倍寬；上半球道用雙份原尺寸，不拉寬單道
-    this.halfWidth=3.65*this.widthScale;
-    this.rewardHalfWidth=1.825;
-    // 雙命運殿出幣口左右行程跟著機寬加倍
-    this.dropAmp=3.15*this.widthScale;
+    // 雙機幣床要比兩道並排再外擴，才能填滿拉伸機櫃左右視覺區（紅框空角）
+    this.halfWidth=this.twinTracks?TWIN_LANE+FRONT_EXIT.halfWidth+1.35:FRONT_EXIT.halfWidth;
+    this.rewardHalfWidth=FRONT_EXIT.rewardHalfWidth;
+    // 雙命運殿出幣口左右行程跟著幣床半寬比例放大
+    this.dropAmp=3.15*(this.halfWidth/FRONT_EXIT.halfWidth);
     this.wallet=wallet??new PlayerWallet();this.ownsWallet=!wallet;
     this.launchRandom=launchRandom;this.layoutRandom=layoutRandom;this.reset();
   }
@@ -131,7 +131,7 @@ export class CoinPusher {
     }
     this.pusher=this.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0,.35,this.pushZ-2.5));
     this.world.createCollider(RAPIER.ColliderDesc.cuboid(hw+.13,.35,2.5).setFriction(.5),this.pusher);
-    const layout=createInitialLayout(this.layoutRandom,this.widthScale);this.initialCount=layout.length;
+    const layout=createInitialLayout(this.layoutRandom,this.widthScale,this.halfWidth);this.initialCount=layout.length;
     for(const p of layout)this.makeCoin(p.x,p.y,p.z);
   }
   drop() {
