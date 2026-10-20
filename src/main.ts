@@ -7,14 +7,14 @@ import {PlayerWallet,type WalletStorage} from './wallet.ts';
 import {ArcadeSession} from './arcade-session.ts';
 import {getMachine,MACHINES,type MachineId} from './machines.ts';
 import {gameCanDrop,gameCoinCount,isDualGame} from './dual-pusher.ts';
-import {formatTimeScale,getGameTimeScale,isPresetScale,MAX_ACCUMULATED_GAME_TIME,planPhysicsFrame,scaleToSlider,setGameTimeScale,shouldDrawThisFrame,sliderToScale,TIME_SCALE_PRESETS,UI_UPDATE_MS,useLiteRender} from './time-scale.ts';
+import {formatTimeScale,getGameTimeScale,isPresetScale,MAX_ACCUMULATED_GAME_TIME,planPhysicsFrame,scaleToSlider,setGameTimeScale,sliderToScale,TIME_SCALE_PRESETS,UI_UPDATE_MS} from './time-scale.ts';
 import './style.css';
 
 const $=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 let storage:WalletStorage|undefined;
 try{storage=window.localStorage;}catch{/* Browser storage can be disabled. */}
 const wallet=new PlayerWallet(storage),session=new ArcadeSession(wallet);
-let accumulator=0,previous=0,entering=false,readyPromise:Promise<void>|undefined,lastUiMs=0,frameIndex=0;
+let accumulator=0,previous=0,entering=false,readyPromise:Promise<void>|undefined,lastUiMs=0;
 const dialog=$<HTMLDialogElement>('leave-dialog');
 function resetClock(){accumulator=0;previous=0;}
 function syncWallet(){
@@ -57,7 +57,7 @@ function syncTimeScaleUI(){
   const preset=Number(button.dataset.scale);
   button.setAttribute('aria-pressed',String(isPresetScale(scale,preset)));
  });
- $('time-scale-hint').textContent=scale===1?'1× 即時 · 物理、SLOT、自動投入同步加速':scale>=2?`${label} · 效能模式（簡化畫面／跳幀）`:`${label} · 遊戲時間加速中`;
+ $('time-scale-hint').textContent=scale===1?'1× 即時 · 物理、SLOT、自動投入同步加速':`${label} · 遊戲加速（畫面維持完整，僅優化物理）`;
 }
 function applyTimeScaleFromInput(){commitTimeScale(Number($<HTMLInputElement>('time-scale').value));}
 function applyTimeScaleFromSlider(){commitTimeScale(sliderToScale(Number($<HTMLInputElement>('time-scale-slider').value)));}
@@ -107,14 +107,13 @@ function frame(ms:number){
  if(!previous)previous=ms;
  const scale=getGameTimeScale();
  const delta=Math.min((ms-previous)/1000,.05);previous=ms;
- frameIndex++;
  if(session.game&&!document.hidden&&!session.leaveRequested){
   const coins=gameCoinCount(session.game);
   accumulator=Math.min(accumulator+delta*scale,MAX_ACCUMULATED_GAME_TIME);
   const plan=planPhysicsFrame(accumulator,CONFIG.fixedStep,coins,scale);
   for(let i=0;i<plan.steps;i++){session.step(plan.dt);accumulator-=plan.dt;}
   if(accumulator<0)accumulator=0;
-  if(shouldDrawThisFrame(scale,frameIndex))render(session.game,useLiteRender(scale));
+  render(session.game);
   if(ms-lastUiMs>=UI_UPDATE_MS||scale<=1){lastUiMs=ms;updateUI();}
  }
  requestAnimationFrame(frame);

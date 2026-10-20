@@ -63,18 +63,6 @@ export function formatTimeScale(scale: number): string {
   return `${text}×`;
 }
 
-/** ≥2× 啟用輕量繪製（少陰影／簡化珠體）。 */
-export function useLiteRender(scale: number): boolean {
-  return scale >= 2;
-}
-
-/** 高倍速跳幀繪製：2× 每 2 幀畫一次，10× 每 3 幀… */
-export function shouldDrawThisFrame(scale: number, frameIndex: number): boolean {
-  if (scale < 2) return true;
-  const skip = scale >= 20 ? 4 : scale >= 10 ? 3 : 2;
-  return frameIndex % skip === 0;
-}
-
 export function planPhysicsFrame(
   desiredGameTime: number,
   baseStep: number,
