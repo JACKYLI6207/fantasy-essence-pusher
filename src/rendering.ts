@@ -170,11 +170,13 @@ function paintCabinet(game:CoinPusher,opts:{clear?:boolean;cropTop?:number}={}){
  ctx.drawImage(platform,28*artScale,430*artScale,1990*artScale,140*artScale,shelfLeft-20,frontY,shelfW+40,32);
  ctx.restore();
 
- // 原本收穫籃（treasure-bay）整組跟著 harvestX 移動；不另畫新籃、不留靜止全寬底籃
+ // 收穫籃跟著 harvestX 移動；素材左右 1/4 是黑落球道，只取中間寶箱拉滿避免黑邊
  const bayLeft=project(game.harvestX-game.rewardCatchHalf,0,FRONT_EXIT.edgeZ,cx).x;
  const bayRight=project(game.harvestX+game.rewardCatchHalf,0,FRONT_EXIT.edgeZ,cx).x;
- const bayWidth=bayRight-bayLeft,bayTop=1174,bayHeight=300;
- ctx.drawImage(bay,bayLeft,bayTop,bayWidth,bayHeight);
+ const bayWidth=Math.max(1,bayRight-bayLeft),bayTop=1174,bayHeight=300;
+ const bw=bay.naturalWidth,bh=bay.naturalHeight;
+ const chestX=bw*.25,chestW=bw*.5;
+ ctx.drawImage(bay,chestX,0,chestW,bh,bayLeft,bayTop,bayWidth,bayHeight);
 
  const depth=(coin:typeof coins[number])=>{const p=coin.body.translation();return coin.entered?p.z*51+p.y*25:-p.y*48;};
  const ordered=[...coins].sort((a,b)=>depth(a)-depth(b));
@@ -208,9 +210,8 @@ function paintCabinet(game:CoinPusher,opts:{clear?:boolean;cropTop?:number}={}){
  if(!splitterDrawn)drawSplitter();
  ctx.restore();
 
- const bw=bay.naturalWidth,bh=bay.naturalHeight;
- ctx.drawImage(bay,bw*.25,bh*.35,bw*.5,bh*.65,bayLeft+bayWidth*.25,bayTop+bayHeight*.35,bayWidth*.5,bayHeight*.65);
- ctx.drawImage(bay,0,bh*.91,bw,bh*.09,bayLeft,bayTop+bayHeight*.91,bayWidth,bayHeight*.09);
+ ctx.drawImage(bay,chestX,bh*.35,chestW,bh*.65,bayLeft,bayTop+bayHeight*.35,bayWidth,bayHeight*.65);
+ ctx.drawImage(bay,chestX,bh*.91,chestW,bh*.09,bayLeft,bayTop+bayHeight*.91,bayWidth,bayHeight*.09);
  const elapsed=game.time-game.lastRewardTime;
  if(elapsed>=0 && elapsed<1.6) {
    const brightness=Math.pow(1-elapsed/1.6,1.6);
@@ -220,7 +221,8 @@ function paintCabinet(game:CoinPusher,opts:{clear?:boolean;cropTop?:number}={}){
    halo.addColorStop(0,'rgba(111,255,185,.85)');halo.addColorStop(.4,'rgba(39,236,135,.4)');halo.addColorStop(1,'rgba(28,221,123,0)');
    ctx.fillStyle=halo;ctx.fillRect(gx-86,gy-86,172,172);
    ctx.beginPath();ctx.ellipse(gx,gy,30,43,0,0,Math.PI*2);ctx.clip();
-   ctx.filter='brightness(3.5) saturate(2)';ctx.drawImage(bay,bayLeft,bayTop,bayWidth,bayHeight);
+   ctx.filter='brightness(3.5) saturate(2)';
+   ctx.drawImage(bay,chestX,0,chestW,bh,bayLeft,bayTop,bayWidth,bayHeight);
    ctx.restore();
  }
  renderCabinetCelebration(ctx,game,W);

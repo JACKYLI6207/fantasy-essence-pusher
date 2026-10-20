@@ -54,6 +54,8 @@ export class CoinPusher {
   harvestX = 0;
   readonly harvestAmp:number;
   readonly rewardCatchHalf:number;
+  /** sin 相位：上層 -π/2 從最左起；下層 +π/2 從最右起 */
+  readonly harvestPhase:number;
   activeDropLane:'left'|'right'='left';
   pushZ = 0;
   speed = 0.9;
@@ -89,6 +91,9 @@ export class CoinPusher {
     // 收穫籃半寬＝原本靜止時的接珠區（雙機＝中央半床），整籃左右移動
     this.rewardCatchHalf=this.twinTracks?(TWIN_LANE+FRONT_EXIT.halfWidth)*.5:FRONT_EXIT.rewardHalfWidth;
     this.harvestAmp=Math.max(.4,this.halfWidth-this.rewardCatchHalf-.35);
+    // 接珠層從最右起；其餘（含上層）從最左起
+    this.harvestPhase=this.receiveOnly?Math.PI/2:-Math.PI/2;
+    this.harvestX=Math.sin(this.harvestPhase)*this.harvestAmp;
     // 接珠層不摆動綠幣口；其餘出幣口行程跟著幣床半寬
     this.dropAmp=this.receiveOnly?0:3.15*(this.halfWidth/FRONT_EXIT.halfWidth);
     this.wallet=wallet??new PlayerWallet();this.ownsWallet=!wallet;
@@ -161,6 +166,7 @@ export class CoinPusher {
     this.world=new RAPIER.World({x:0,y:-15,z:0});
     this.world.timestep=CONFIG.fixedStep;
     this.coins=[];this.time=0;this.dropped=0;this.won=0;this.recycled=0;this.cascaded=0;this.lastRewardTime=-1000;this.lastDrop=-1000;this.transferred=0;
+    this.harvestX=Math.sin(this.harvestPhase)*this.harvestAmp;
     this.dropX=0;this.dropXLeft=-TWIN_LANE;this.dropXRight=TWIN_LANE;this.activeDropLane='left';this.pushZ=1.5;
     this.bonusSpawned=0;this.pendingBonuses=[];this.slotLights=Array(14).fill(-1000);this.lastGreenEject=-1000;this.lastGoldEject=-1000;
     this.lastLeftEject=-1000;this.lastRightEject=-1000;this.nextEssenceSide='left';this.lastGoldEjectLane='left';
@@ -222,9 +228,9 @@ export class CoinPusher {
     const stepDt=Math.max(1/240,dt);
     this.world.timestep=stepDt;
     this.time+=stepDt;
-    // 綠幣出幣口來回；收穫籃同向但速度一半
+    // 綠幣出幣口來回；收穫籃同向但速度一半（相位決定左右起點）
     this.dropX=Math.sin(this.time*this.speed)*this.dropAmp;
-    this.harvestX=Math.sin(this.time*this.speed*.5)*this.harvestAmp;
+    this.harvestX=Math.sin(this.time*this.speed*.5+this.harvestPhase)*this.harvestAmp;
     if(this.autoDrop)this.drop();
     this.pushZ=1.5+(1-Math.cos(this.time*CONFIG.pusherAngularSpeed))*.58;
     this.pusher.setNextKinematicTranslation({x:0,y:.35,z:this.pushZ-2.5});
