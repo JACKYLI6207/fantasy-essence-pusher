@@ -9,6 +9,8 @@ export const CONFIG = {
   initialCoins: 108,
   initialFillMin: .6,
   initialFillMax: .8,
+  startingGold: 1000,
+  essenceCost: 1,
 };
 export const PEGS: { x: number; y: number; radius?: number }[] = [];
 export const SPLITTER = {x:0,z:5.5,scale:1.6,halfWidth:.18*1.6,halfDepth:.25*1.6,height:.42*1.6};

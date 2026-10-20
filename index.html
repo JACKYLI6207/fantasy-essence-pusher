@@ -1,7 +1,31 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>秘境金庫 · 推幣冒險</title></head><body><div id="app"><header><span class="eyebrow">FANTASY ARCADE / PROTOTYPE 01</span><h1>秘境金庫</h1><p>掌握時機，讓精華穿越命運的針陣。</p></header><main><section class="machine"><span id="machine-announcement" class="sr-only" role="status" aria-live="polite">秘境金庫 · 龍珠入寶箱，喚醒命運 SLOT</span><canvas id="game" aria-label="奇幻推幣機遊戲"></canvas><div id="loading">正在喚醒秘境機台…</div></section><aside><span class="eyebrow">THE ADVENTURE BEGINS</span><h2>每一顆精華，<br>都是新的可能。</h2><div class="stats"><div><small>投入精華</small><strong id="dropped">0</strong></div><div><small>玩家獎勵</small><strong id="won">0</strong></div><div><small>系統回收</small><strong id="recycled">0</strong></div></div><button id="drop" disabled>投下一顆精華 <kbd>SPACE</kbd></button><p class="hint">觀察上方出幣口的位置，點擊按鈕或按空白鍵投放精華，每秒最多 2 顆。</p><div class="steps"><p><b>01</b> 等待出幣口移動到理想位置</p><p><b>02</b> 精華經過針陣，落入下方幣床</p><p><b>03</b> 中央 1/2 計入獎勵，左右各 1/4 系統回收</p></div><p class="hint">命中龍珠格時，龍頭必定出一顆龍珠。</p><p id="slot-status" class="hint">龍珠入箱啟動 SLOT</p><details class="slot-paytable"><summary>SLOT 圖示與配獎機率</summary><p class="hint">三個相同圖示連線，必得精華。三軸依序於 2／2.7／3.4 秒停止。</p><div id="slot-paytable"></div><p class="hint">依下列權重抽定獎項，再由三軸呈現連線。平均每次 23.7 顆；左右回收的龍珠不啟動 SLOT。</p></details><span id="status">物理引擎準備中</span></aside></main><footer>奇幻冒險 · 基礎機台測試版 <span>AI 機台美術 / 即時物理模擬</span></footer></div><script type="module" src="/src/main.ts"></script></body></html>
-
-
-
-
-
-
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>秘境金庫 · 推幣冒險</title></head>
+<body><div id="app">
+<header><span class="eyebrow">FANTASY ARCADE / PROTOTYPE 01</span><h1>秘境金庫</h1><p>掌握時機，讓精華穿越命運的針陣。</p></header>
+<main>
+<section class="machine">
+  <div class="wallet" aria-label="金幣餘額"><span class="wallet-symbol" aria-hidden="true">◈</span><div><span class="wallet-label">金幣</span><strong id="gold-balance" aria-label="目前金幣">1,000</strong></div></div>
+  <span id="machine-announcement" class="sr-only" role="status" aria-live="polite">秘境金庫 · 龍珠入寶箱，喚醒命運 SLOT</span>
+  <canvas id="game" aria-label="奇幻推幣機遊戲"></canvas><div id="loading">正在喚醒秘境機台…</div>
+</section>
+<aside>
+  <div class="play-controls">
+    <button id="drop" disabled>投入精華 · 1 金幣 <kbd>SPACE</kbd></button>
+    <button id="auto-drop" class="auto-button" aria-pressed="false" disabled>開啟自動投入</button>
+    <p id="auto-status" class="hint" role="status">1 金幣 = 1 精華 · 每秒最多 2 顆</p>
+    <p id="slot-status" class="hint">龍珠入箱啟動 SLOT</p>
+    <span id="status">物理引擎準備中</span>
+  </div>
+  <details class="adventure-details">
+    <summary><span class="eyebrow">THE ADVENTURE BEGINS</span><span>玩法與紀錄</span></summary>
+    <h2>每一顆精華，<br>都是新的可能。</h2>
+    <div class="stats"><div><small>投入精華</small><strong id="dropped">0</strong></div><div><small>玩家獎勵</small><strong id="won">0</strong></div><div><small>系統回收</small><strong id="recycled">0</strong></div></div>
+    <p class="hint">觀察上方出幣口的位置，點擊按鈕或按空白鍵投放精華，每秒最多 2 顆。</p>
+    <div class="steps"><p><b>01</b> 等待出幣口移動到理想位置</p><p><b>02</b> 精華經過針陣，落入下方幣床</p><p><b>03</b> 中央 1/2 計入獎勵，左右各 1/4 系統回收</p></div>
+    <p class="hint">命中龍珠格時，龍頭必定出一顆龍珠。</p>
+    <details class="slot-paytable"><summary>SLOT 圖示與配獎機率</summary><p class="hint">三個相同圖示連線，必得精華。三軸依序於 2／2.7／3.4 秒停止。</p><div id="slot-paytable"></div><p class="hint">依下列權重抽定獎項，再由三軸呈現連線。平均每次 23.7 顆；左右回收的龍珠不啟動 SLOT。</p></details>
+  </details>
+</aside>
+</main><footer>奇幻冒險 · 基礎機台測試版 <span>AI 機台美術 / 即時物理模擬</span></footer>
+</div><script type="module" src="/src/main.ts"></script></body></html>

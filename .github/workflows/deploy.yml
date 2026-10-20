@@ -22,6 +22,7 @@ jobs:
       - run: npm ci
       - run: node tests/player-controls.mjs
       - run: node tests/initial-layout.mjs
+      - run: node tests/wallet-auto.mjs
       - run: node tests/slot.mjs
       - run: npm run build
       - uses: actions/configure-pages@v5

@@ -9,6 +9,8 @@ export class CoinPusher {
   pusher!: RAPIER.RigidBody;
   coins: Coin[] = [];
   initialCount=0;
+  gold=CONFIG.startingGold;
+  autoDrop=false;
   time = 0;
   dropped = 0;
   won = 0;
@@ -54,6 +56,7 @@ export class CoinPusher {
     this.bonusSpawned=0;this.pendingBonuses=[];this.slotLights=Array(7).fill(-1000);this.lastGreenEject=-1000;this.lastGoldEject=-1000;
     this.lastLeftEject=-1000;this.lastRightEject=-1000;this.nextEssenceSide='left';
     this.outletColliders=[];
+    this.gold=CONFIG.startingGold;this.autoDrop=false;
     this.slot.reset();
     this.box(0,-.22,3.15,3.65,.22,3.65);
     const points:number[]=[];
@@ -91,15 +94,24 @@ export class CoinPusher {
     for(const p of layout)this.makeCoin(p.x,p.y,p.z);
   }
   drop() {
+    if(this.gold<CONFIG.essenceCost) {this.autoDrop=false;return false;}
     if(this.time-this.lastDrop+1e-9<CONFIG.dropCooldown || this.coins.length>=CONFIG.maxCoins) return false;
     this.lastDrop=this.time;
     this.makeCoin(this.dropX,9.55,.25,true,'green','player');
+    this.gold-=CONFIG.essenceCost;
+    if(this.gold<CONFIG.essenceCost)this.autoDrop=false;
     this.dropped++;
     return true;
+  }
+  setAutoDrop(enabled:boolean) {
+    this.autoDrop=enabled&&this.gold>=CONFIG.essenceCost;
+    if(this.autoDrop)this.drop();
+    return this.autoDrop;
   }
   step() {
     this.time+=CONFIG.fixedStep;
     this.dropX=Math.sin(this.time*this.speed)*3.15;
+    if(this.autoDrop)this.drop();
     this.pushZ=1.5+(1-Math.cos(this.time*CONFIG.pusherAngularSpeed))*.58;
     this.pusher.setNextKinematicTranslation({x:0,y:.35,z:this.pushZ-2.5});
     this.world.step();
