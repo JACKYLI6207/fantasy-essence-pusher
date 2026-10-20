@@ -30,7 +30,7 @@ function updateUI(){
  auto.setAttribute('aria-pressed',String(game.autoDrop));auto.textContent=game.autoDrop?'停止自動投入':'開啟自動投入';
  $('auto-status').textContent=game.gold<CONFIG.essenceCost?'金幣不足，已停止投入；精華入箱可回補金幣':game.autoDrop
   ?(wide?'寬機自動投入中 · 每顆 1 金幣':'自動投入中 · 每秒最多 2 顆 · 每顆 1 金幣')
-  :(wide?'1 金幣投入 1 精華 · 左右球道交替 · 雙 SLOT':'1 金幣投入 1 精華 · 精華入箱返還 1 金幣');
+  :(wide?'1 金幣投入 1 精華 · 連體幣池 · 雙 SLOT':'1 金幣投入 1 精華 · 精華入箱返還 1 金幣');
  const message=marqueeMessage(game.slot,wide);if($('machine-announcement').textContent!==message)$('machine-announcement').textContent=message;
  const aSpin=game.slot.phase==='spinning'||game.slot.remaining>0||game.slot.queue>0;
  const bSpin=wide&&(game.slotB.phase==='spinning'||game.slotB.remaining>0||game.slotB.queue>0);
@@ -81,7 +81,7 @@ async function enterMachine(id:MachineId){
   setDisplayLayout(machine.layout==='dual');
   $('lobby-screen').hidden=true;$('machine-screen').hidden=false;$('lobby-wallet').hidden=true;$('machine-nav').hidden=false;
   $('page-title').textContent=machine.name;
-  $('page-subtitle').textContent=machine.layout==='dual'?'雙球道雙龍頭，下方幣池互通、接幣口連體。':'掌握時機，讓精華穿越命運的針陣。';
+  $('page-subtitle').textContent=machine.layout==='dual'?'連體寬機：幣池互通，雙拉霸，單一出幣與接幣。':'掌握時機，讓精華穿越命運的針陣。';
   document.title=`${machine.name} · 推幣冒險`;
   $<HTMLDetailsElement>('adventure-details').open=false;
   $('loading').style.display='none';resetClock();updateUI();render(session.game!);
@@ -124,7 +124,7 @@ function buildLobbyCards(){
   const article=document.createElement('article');article.className='machine-card';
   article.innerHTML=`
     <div class="machine-card-art"><img src="${new URL(`./assets/${machine.image}`,document.baseURI).href}" alt="${machine.name}預覽"><span class="machine-number">MACHINE ${String(index+1).padStart(2,'0')}</span><span class="open-badge">${machine.layout==='dual'?'雙機開放':'開放遊玩'}</span></div>
-    <div class="machine-card-info"><span class="eyebrow">${machine.tag}</span><h3>${machine.name}</h3><p>${machine.description}</p><div class="machine-tags"><span>1 金幣 / 精華</span><span>${machine.layout==='dual'?'雙龍頭 · 雙 SLOT':'龍珠 SLOT'}</span><span>${machine.layout==='dual'?'雙球道':'隨機盤面'}</span></div><div class="machine-card-rule"><span>每次入場，都是新的盤面</span><p>${machine.layout==='dual'?'兩套原尺寸球道並排，下方幣池與接幣口連通。離開時進度清除，金幣保留。':'精華入箱返還金幣。離開時機台進度與未派獎勵清除，已持有金幣保留。'}</p></div><button type="button" data-enter-machine="${machine.id}">進入機台 →</button></div>`;
+    <div class="machine-card-info"><span class="eyebrow">${machine.tag}</span><h3>${machine.name}</h3><p>${machine.description}</p><div class="machine-tags"><span>1 金幣 / 精華</span><span>${machine.layout==='dual'?'雙 SLOT':'龍珠 SLOT'}</span><span>${machine.layout==='dual'?'連體幣池':'隨機盤面'}</span></div><div class="machine-card-rule"><span>每次入場，都是新的盤面</span><p>${machine.layout==='dual'?'雙倍寬連體櫃：單一出幣口與接幣口，幣池互通，雙拉霸。離開時進度清除，金幣保留。':'精華入箱返還金幣。離開時機台進度與未派獎勵清除，已持有金幣保留。'}</p></div><button type="button" data-enter-machine="${machine.id}">進入機台 →</button></div>`;
   list.append(article);
  });
  list.querySelectorAll<HTMLButtonElement>('[data-enter-machine]').forEach(button=>{

@@ -2,11 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { SlotMachine } from './slot.ts';
 import {createInitialLayout} from './initial-layout.ts';
 import {PlayerWallet} from './wallet.ts';
-import {
-  CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, TWIN_LANE, FRONT_EXIT,
-  prizeSlotIndex, classifyFrontExit, classifyTwinFrontExit, twinPrizeSlotIndex,
-  type ExitZone,
-} from './config.ts';
+import { CONFIG, PEGS, OUTLETS, SPLITTER, PRIZE_SLOTS, prizeSlotIndex, classifyFrontExit, type ExitZone } from './config.ts';
 
 export type Coin = { body: RAPIER.RigidBody; entered: boolean; age: number; lowestY: number; stalledFor: number; exitZone: ExitZone | null; kind:'green'|'gold'; source:'player'|'bonus'|'bed'; slotChecked:boolean };
 export type CoinPusherOptions = { widthScale?: number; dualSlots?: boolean };
@@ -17,14 +13,13 @@ export class CoinPusher {
   pusher!: RAPIER.RigidBody;
   coins: Coin[] = [];
   initialCount=0;
-  /** 1 = 原機；2 = 雙球道連體機（兩套原尺寸球道 + 共用幣池） */
+  /** 1 = 原機；2 = 雙倍寬連體機 */
   readonly widthScale:number;
   readonly dualSlots:boolean;
-  readonly twinTracks:boolean;
   readonly halfWidth:number;
   readonly rewardHalfWidth:number;
   readonly dropAmp:number;
-  get maxCoins(){return Math.round(CONFIG.maxCoins*(this.twinTracks?1.5:1));}
+  get maxCoins(){return Math.round(CONFIG.maxCoins*(this.widthScale>1?1.5:1));}
   private wallet:PlayerWallet;
   private ownsWallet:boolean;
   get gold(){return this.wallet.gold;}
@@ -38,35 +33,30 @@ export class CoinPusher {
   lastRewardTime = -1000;
   lastDrop = -1000;
   dropX = 0;
-  /** 雙球道：左右龍頭各自的出幣 X */
-  dropXLeft = 0;
-  dropXRight = 0;
-  activeDropLane:'left'|'right'='left';
   pushZ = 0;
   speed = 0.9;
   transferred = 0;
   bonusSpawned = 0;
-  pendingBonuses: {kind:'green'|'gold'; due:number; slotPayout?:boolean; slotId?:0|1; lane?:'left'|'right'}[] = [];
+  pendingBonuses: {kind:'green'|'gold'; due:number; slotPayout?:boolean; slotId?:0|1}[] = [];
   slot = new SlotMachine();
   slotB = new SlotMachine();
-  slotLights = Array(14).fill(-1000) as number[];
+  private nextSlot:0|1=0;
+  slotLights = Array(7).fill(-1000) as number[];
   lastGreenEject = -1000;
   lastLeftEject = -1000;
   lastRightEject = -1000;
   nextEssenceSide:'left'|'right'='left';
   lastGoldEject = -1000;
-  lastGoldEjectLane:'left'|'right'='left';
   outletColliders: RAPIER.Collider[] = [];
   splitterCollider!:RAPIER.Collider;
   private launchRandom:()=>number;
   private layoutRandom:()=>number;
   constructor(launchRandom:()=>number=Math.random,layoutRandom:()=>number=Math.random,wallet?:PlayerWallet,opts:CoinPusherOptions={}) {
     this.widthScale=opts.widthScale??1;
-    this.twinTracks=this.widthScale>1;
-    this.dualSlots=opts.dualSlots??this.twinTracks;
-    this.halfWidth=this.twinTracks?TWIN_LANE+FRONT_EXIT.halfWidth:FRONT_EXIT.halfWidth;
-    this.rewardHalfWidth=FRONT_EXIT.rewardHalfWidth;
-    this.dropAmp=3.15;
+    this.dualSlots=opts.dualSlots??this.widthScale>1;
+    this.halfWidth=3.65*this.widthScale;
+    this.rewardHalfWidth=1.825*this.widthScale;
+    this.dropAmp=3.15*this.widthScale;
     this.wallet=wallet??new PlayerWallet();this.ownsWallet=!wallet;
     this.launchRandom=launchRandom;this.layoutRandom=layoutRandom;this.reset();
   }
@@ -82,80 +72,59 @@ export class CoinPusher {
     this.coins.push({body,entered:!upper,age:0,lowestY:y,stalledFor:0,exitZone:null,kind,source,slotChecked:!upper || source!=='player'});
     return body;
   }
-  private addDragonAt(cx:number) {
-    const dragon=OUTLETS.dragon;
-    this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.5).setTranslation(cx,dragon.y+.2,dragon.z)));
-    for(const ox of [-.43,.43]) this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.23).setTranslation(cx+ox,dragon.y-.2,dragon.z)));
-  }
-  private addLaneUpper(cx:number) {
-    // 上半球道：與原機相同尺寸，僅平移到左右中心
-    this.box(cx,5,-.18,3.8,5,.08);
-    this.box(cx-2.35,5.7,.85,1.45,4.3,.08);this.box(cx+2.35,5.7,.85,1.45,4.3,.08);
-    for(let i=1;i<7;i++) this.box(cx-3.65+i*(7.3/7),2.45,.3,.035,.4,.45);
-    for(const peg of PEGS) {
-      const shape=RAPIER.ColliderDesc.cylinder(.32,peg.radius ?? .105)
-        .setRotation({x:Math.SQRT1_2,y:0,z:0,w:Math.SQRT1_2});
-      this.world.createCollider(shape.setTranslation(cx+peg.x,peg.y,.25)
-        .setFriction(.025).setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min).setRestitution(.28));
-    }
-    this.addDragonAt(cx);
-  }
   reset() {
-    const hw=this.halfWidth;
+    const sx=this.widthScale, hw=this.halfWidth;
     this.world?.free();
     this.world=new RAPIER.World({x:0,y:-15,z:0});
     this.world.timestep=CONFIG.fixedStep;
-    this.coins=[];this.time=0;this.dropped=0;this.won=0;this.recycled=0;this.lastRewardTime=-1000;this.lastDrop=-1000;this.transferred=0;
-    this.dropX=0;this.dropXLeft=-TWIN_LANE;this.dropXRight=TWIN_LANE;this.activeDropLane='left';this.pushZ=1.5;
-    this.bonusSpawned=0;this.pendingBonuses=[];this.slotLights=Array(14).fill(-1000);this.lastGreenEject=-1000;this.lastGoldEject=-1000;
-    this.lastLeftEject=-1000;this.lastRightEject=-1000;this.nextEssenceSide='left';this.lastGoldEjectLane='left';
+    this.coins=[];this.time=0;this.dropped=0;this.won=0;this.recycled=0;this.lastRewardTime=-1000;this.lastDrop=-1000;this.transferred=0;this.dropX=0;this.pushZ=1.5;
+    this.bonusSpawned=0;this.pendingBonuses=[];this.slotLights=Array(7).fill(-1000);this.lastGreenEject=-1000;this.lastGoldEject=-1000;
+    this.lastLeftEject=-1000;this.lastRightEject=-1000;this.nextEssenceSide='left';this.nextSlot=0;
     this.outletColliders=[];
     if(this.ownsWallet)this.gold=CONFIG.startingGold;
     this.earnedGold=0;this.autoDrop=false;
     this.slot.reset();this.slotB.reset();
-
-    // 下方共用幣池地板（連通，無中牆）
     this.box(0,-.22,3.15,hw,.22,3.65);
     const points:number[]=[];
     for(const y of [0,SPLITTER.height])for(const [x,z] of [[0,-SPLITTER.halfDepth],[-SPLITTER.halfWidth,SPLITTER.halfDepth],[SPLITTER.halfWidth,SPLITTER.halfDepth]])points.push(x,y,z);
     this.splitterCollider=this.world.createCollider(RAPIER.ColliderDesc.convexHull(new Float32Array(points))!
       .setTranslation(SPLITTER.x,0,SPLITTER.z).setFriction(.05).setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min).setRestitution(.08));
+    this.box(0,5,-.18,hw+.15,5,.08);
+    this.box(-2.35*sx,5.7,.85,1.45*sx,4.3,.08);this.box(2.35*sx,5.7,.85,1.45*sx,4.3,.08);
+    for(let i=1;i<7;i++) this.box(-hw+i*(hw*2/7),2.45,.3,.035,.4,.45);
     this.box(-hw-.15,5,.2,.12,5,.5);this.box(hw+.15,5,.2,.12,5,.5);
     this.box(-hw-.12,.5,3.5,.12,2.5,4.2);this.box(hw+.12,.5,3.5,.12,2.5,4.2);
-
-    if(this.twinTracks){
-      this.addLaneUpper(-TWIN_LANE);
-      this.addLaneUpper(TWIN_LANE);
-      // 側管：各球道外側
-      for(const lane of [-TWIN_LANE,TWIN_LANE]){
-        for(const pipe of [OUTLETS.leftPipe,OUTLETS.pipe]) {
-          const px=lane+pipe.x;
-          this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.cuboid(.28,.17,.3).setTranslation(px,pipe.y+.4,pipe.z)));
-          this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.cuboid(.28,.12,.3).setTranslation(px,pipe.y-.4,pipe.z)));
-        }
-      }
-    }else{
-      this.addLaneUpper(0);
-      for(const pipe of [OUTLETS.leftPipe,OUTLETS.pipe]) {
-        this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.cuboid(.28,.17,.3).setTranslation(pipe.x,pipe.y+.4,pipe.z)));
-        this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.cuboid(.28,.12,.3).setTranslation(pipe.x,pipe.y-.4,pipe.z)));
+    for(const peg of PEGS) {
+      const shape=RAPIER.ColliderDesc.cylinder(.32,peg.radius ?? .105)
+        .setRotation({x:Math.SQRT1_2,y:0,z:0,w:Math.SQRT1_2});
+      this.world.createCollider(shape.setTranslation(peg.x*sx,peg.y,.25)
+        .setFriction(.025).setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min).setRestitution(.28));
+    }
+    // 寬機再補一排偏折針，避免中央過空
+    if(sx>1){
+      for(const x of [-4.2,-1.4,1.4,4.2]){
+        const shape=RAPIER.ColliderDesc.cylinder(.32,.105).setRotation({x:Math.SQRT1_2,y:0,z:0,w:Math.SQRT1_2});
+        this.world.createCollider(shape.setTranslation(x,6.65,.25).setFriction(.025).setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min).setRestitution(.28));
       }
     }
-
+    const dragon=OUTLETS.dragon;
+    this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.5).setTranslation(dragon.x,dragon.y+.2,dragon.z)));
+    for(const x of [-.43,.43]) this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.23).setTranslation(x,dragon.y-.2,dragon.z)));
+    for(const pipe of [OUTLETS.leftPipe,OUTLETS.pipe]) {
+      const px=pipe.x*sx;
+      this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.cuboid(.28,.17,.3).setTranslation(px,pipe.y+.4,pipe.z)));
+      this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.cuboid(.28,.12,.3).setTranslation(px,pipe.y-.4,pipe.z)));
+    }
     this.pusher=this.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0,.35,this.pushZ-2.5));
     this.world.createCollider(RAPIER.ColliderDesc.cuboid(hw+.13,.35,2.5).setFriction(.5),this.pusher);
-    const layout=createInitialLayout(this.layoutRandom,this.twinTracks?2:1);this.initialCount=layout.length;
+    const layout=createInitialLayout(this.layoutRandom,sx);this.initialCount=layout.length;
     for(const p of layout)this.makeCoin(p.x,p.y,p.z);
   }
   drop() {
     if(this.gold<CONFIG.essenceCost) {this.autoDrop=false;return false;}
     if(this.time-this.lastDrop+1e-9<CONFIG.dropCooldown || this.coins.length>=this.maxCoins) return false;
     this.lastDrop=this.time;
-    const x=this.twinTracks
-      ?(this.activeDropLane==='left'?this.dropXLeft:this.dropXRight)
-      :this.dropX;
-    this.makeCoin(x,9.55,.25,true,'green','player');
-    if(this.twinTracks)this.activeDropLane=this.activeDropLane==='left'?'right':'left';
+    this.makeCoin(this.dropX,9.55,.25,true,'green','player');
     this.gold-=CONFIG.essenceCost;
     if(this.gold<CONFIG.essenceCost)this.autoDrop=false;
     this.dropped++;
@@ -172,14 +141,10 @@ export class CoinPusher {
   }
   step(dt=CONFIG.fixedStep) {
     const stepDt=Math.max(1/240,dt);
+    const sx=this.widthScale;
     this.world.timestep=stepDt;
     this.time+=stepDt;
-    const sway=Math.sin(this.time*this.speed)*this.dropAmp;
-    if(this.twinTracks){
-      this.dropXLeft=-TWIN_LANE+sway;
-      this.dropXRight=TWIN_LANE+sway;
-      this.dropX=this.activeDropLane==='left'?this.dropXLeft:this.dropXRight;
-    }else this.dropX=sway;
+    this.dropX=Math.sin(this.time*this.speed)*this.dropAmp;
     if(this.autoDrop)this.drop();
     this.pushZ=1.5+(1-Math.cos(this.time*CONFIG.pusherAngularSpeed))*.58;
     this.pusher.setNextKinematicTranslation({x:0,y:.35,z:this.pushZ-2.5});
@@ -189,13 +154,11 @@ export class CoinPusher {
       const p=coin.body.translation();
       if(!coin.slotChecked && p.y<2.05) {
         coin.slotChecked=true;
-        const local=this.twinTracks?twinPrizeSlotIndex(p.x):prizeSlotIndex(p.x);
-        const prize=PRIZE_SLOTS[local];
-        const lightIndex=this.twinTracks?(p.x<0?local:local+7):local;
-        this.slotLights[lightIndex]=this.time;
+        const slot=prizeSlotIndex(p.x,this.halfWidth),prize=PRIZE_SLOTS[slot];
+        this.slotLights[slot]=this.time;
         if(prize==='green') {
-          this.pendingBonuses.push({kind:'green',due:this.time+.15,lane:p.x<0?'left':'right'},{kind:'green',due:this.time+.15,lane:p.x<0?'left':'right'});
-        } else if(prize==='gold') this.pendingBonuses.push({kind:'gold',due:this.time+.2,lane:p.x<0?'left':'right'});
+          this.pendingBonuses.push({kind:'green',due:this.time+.15},{kind:'green',due:this.time+.15});
+        } else if(prize==='gold') this.pendingBonuses.push({kind:'gold',due:this.time+.2});
       }
       if(!coin.entered && p.y<1.45) {
         coin.entered=true;if(coin.source==='player') this.transferred++;
@@ -215,9 +178,7 @@ export class CoinPusher {
           coin.stalledFor=0;
         }
       }
-      if(coin.entered && coin.exitZone===null && p.y<0 && p.z>6.65) {
-        coin.exitZone=this.twinTracks?classifyTwinFrontExit(p.x):classifyFrontExit(p.x);
-      }
+      if(coin.entered && coin.exitZone===null && p.y<0 && p.z>6.65) coin.exitZone=classifyFrontExit(p.x,this.rewardHalfWidth);
       const collectionY=coin.exitZone==='recycle'?-6.1:-1.8;
       if(p.y<collectionY || (!coin.entered && coin.age>180)) {
         if(p.y<collectionY && coin.exitZone!==null) {
@@ -225,8 +186,8 @@ export class CoinPusher {
             this.won++;this.lastRewardTime=this.time;
             if(coin.kind==='gold'){
               if(this.dualSlots){
-                const lane=p.x<0?'left':'right';
-                (lane==='left'?this.slot:this.slotB).trigger();
+                (this.nextSlot===0?this.slot:this.slotB).trigger();
+                this.nextSlot=this.nextSlot===0?1:0;
               }else this.slot.trigger();
             }
             else {this.gold+=CONFIG.essenceReturnGold;this.earnedGold+=CONFIG.essenceReturnGold;}
@@ -240,25 +201,23 @@ export class CoinPusher {
     });
     const payoutA=this.slot.update(this.time);
     const payoutB=this.dualSlots?this.slotB.update(this.time):0;
-    for(let i=0;i<payoutA;i++)this.pendingBonuses.push({kind:'green',due:this.time,slotPayout:true,slotId:0,lane:'left'});
-    for(let i=0;i<payoutB;i++)this.pendingBonuses.push({kind:'green',due:this.time,slotPayout:true,slotId:1,lane:'right'});
+    for(let i=0;i<payoutA;i++)this.pendingBonuses.push({kind:'green',due:this.time,slotPayout:true,slotId:0});
+    for(let i=0;i<payoutB;i++)this.pendingBonuses.push({kind:'green',due:this.time,slotPayout:true,slotId:1});
     const pending:typeof this.pendingBonuses=[];
     for(const bonus of this.pendingBonuses) {
       if(bonus.due>this.time || this.coins.length>=this.maxCoins || (bonus.kind==='green' && this.time-this.lastGreenEject<CONFIG.essenceEjectInterval)) {pending.push(bonus);continue;}
       if(bonus.kind==='green') {
-        const laneCenter=this.twinTracks?(bonus.lane==='right'?TWIN_LANE:-TWIN_LANE):0;
         const left=this.nextEssenceSide==='left';
-        const local=left?OUTLETS.leftGreenSpawn:OUTLETS.greenSpawn;
-        const body=this.makeCoin(laneCenter+local.x,local.y,local.z,false,'green','bonus');
+        const spawnX=(left?OUTLETS.leftGreenSpawn.x:OUTLETS.greenSpawn.x)*sx;
+        const spawn=left?OUTLETS.leftGreenSpawn:OUTLETS.greenSpawn;
+        const body=this.makeCoin(spawnX,spawn.y,spawn.z,false,'green','bonus');
         const strength=1+Math.min(1,Math.max(0,this.launchRandom()));
         body.setLinvel({x:(left?1:-1)*3.2*strength,y:.25,z:.15},true);this.lastGreenEject=this.time;
         if(left)this.lastLeftEject=this.time;else this.lastRightEject=this.time;
         this.nextEssenceSide=left?'right':'left';
       } else {
-        const laneCenter=this.twinTracks?(bonus.lane==='right'?TWIN_LANE:-TWIN_LANE):0;
-        this.makeCoin(laneCenter+OUTLETS.goldSpawn.x,OUTLETS.goldSpawn.y,OUTLETS.goldSpawn.z,true,'gold','bonus');
-        this.lastGoldEject=this.time;
-        this.lastGoldEjectLane=bonus.lane==='right'?'right':'left';
+        const spawn=OUTLETS.goldSpawn;
+        this.makeCoin(spawn.x,spawn.y,spawn.z,true,'gold','bonus');this.lastGoldEject=this.time;
       }
       this.bonusSpawned++;
       if(bonus.slotPayout){
