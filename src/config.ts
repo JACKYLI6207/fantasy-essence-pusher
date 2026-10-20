@@ -29,8 +29,11 @@ export function prizeSlotIndex(x: number, halfWidth = 3.65) {
   return Math.max(0,Math.min(6,Math.floor((x+halfWidth)/(span/7))));
 }
 export const FRONT_EXIT = { halfWidth: 3.65, rewardHalfWidth: 1.825, edgeZ: 6.8 };
-/** 雙命運殿左右球道中心（各為原尺寸一道，不是單道拉寬）。 */
-export const TWIN_LANE = 3.85;
+/**
+ * 雙命運殿左右球道中心。
+ * = halfWidth，使左右各 7 格無縫接成 14 格等寬，避免中間窄縫。
+ */
+export const TWIN_LANE = FRONT_EXIT.halfWidth;
 export type ExitZone = 'reward' | 'recycle';
 // A bead centred exactly on a divider belongs to the outer recovery zone.
 export function classifyFrontExit(x: number, rewardHalfWidth = FRONT_EXIT.rewardHalfWidth): ExitZone {

@@ -78,10 +78,21 @@ function paintCabinet(game:CoinPusher){
  const {pushZ,coins}=game;
 
  ctx.clearRect(0,0,W,1536);
- // 連體櫃美術維持橫向拉伸（其它版面不動）
+ // 連體櫃美術維持橫向拉伸
  ctx.drawImage(machine,0,0,W,1536);
+ if(twin){
+  // 蓋掉拉伸後中央那一個出幣口，改畫左右兩個
+  const oy=300,oh=130;
+  ctx.drawImage(machine,360,oy,100,oh,cx-100,oy,200,oh);
+ }
 
- if(wide){
+ if(twin){
+  // 拉霸中心(offset+512)對齊龍頭 X
+  const leftSlotX=project(-TWIN_LANE,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
+  const rightSlotX=project(TWIN_LANE,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
+  renderSlot(ctx,game,leftSlotX,game.slot);
+  renderSlot(ctx,game,rightSlotX,game.slotB);
+ }else if(wide){
   renderSlot(ctx,game,W*0.05,game.slot);
   renderSlot(ctx,game,W*0.05+900,game.slotB);
  }else renderSlot(ctx,game);

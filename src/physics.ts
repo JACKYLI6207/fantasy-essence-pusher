@@ -84,6 +84,7 @@ export class CoinPusher {
     for(const ox of [-.43,.43]) this.outletColliders.push(this.world.createCollider(RAPIER.ColliderDesc.ball(.23).setTranslation(cx+ox,d.y-.2,d.z)));
   }
   private addTrack(cx:number) {
+    // 與單機相同淨寬：綠珠(r=0.25)／金球(r=0.375)皆可過針陣與七格
     this.box(cx-2.35,5.7,.85,1.45,4.3,.08);this.box(cx+2.35,5.7,.85,1.45,4.3,.08);
     for(let i=1;i<7;i++) this.box(cx-3.65+i*(7.3/7),2.45,.3,.035,.4,.45);
     for(const peg of PEGS) {
