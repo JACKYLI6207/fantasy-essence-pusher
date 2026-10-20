@@ -24,23 +24,25 @@ export const OUTLETS = {
   leftGreenSpawn: {x:-2.8,y:1.55,z:2.75},
 };
 export const PRIZE_SLOTS = ['none','green','none','gold','none','green','none'] as const;
-/** 雙命運殿：左右金球判定各朝機台中間移一格。 */
-export const PRIZE_SLOTS_LEFT = ['none','green','none','none','gold','green','none'] as const;
-export const PRIZE_SLOTS_RIGHT = ['none','green','gold','none','none','green','none'] as const;
 export type PrizeKind = (typeof PRIZE_SLOTS)[number];
-export function twinPrizeSlots(x: number): readonly PrizeKind[] {
-  return x < 0 ? PRIZE_SLOTS_LEFT : PRIZE_SLOTS_RIGHT;
-}
 export function prizeSlotIndex(x: number, halfWidth = 3.65) {
   const span = halfWidth * 2;
   return Math.max(0,Math.min(6,Math.floor((x+halfWidth)/(span/7))));
 }
 export const FRONT_EXIT = { halfWidth: 3.65, rewardHalfWidth: 1.825, edgeZ: 6.8 };
+/** 七格判定每一格的世界寬度。 */
+export const PRIZE_GATE = (FRONT_EXIT.halfWidth * 2) / 7;
 /**
  * 雙命運殿左右球道中心。
  * = halfWidth，使左右各 7 格無縫接成 14 格等寬，避免中間窄縫。
  */
 export const TWIN_LANE = FRONT_EXIT.halfWidth;
+/** 吐金球龍頭朝內各挪一格後的 X。 */
+export const TWIN_DRAGON_LEFT = -TWIN_LANE + PRIZE_GATE;
+export const TWIN_DRAGON_RIGHT = TWIN_LANE - PRIZE_GATE;
+export function twinDragonX(lane: 'left'|'right'|undefined) {
+  return lane==='right'?TWIN_DRAGON_RIGHT:lane==='left'?TWIN_DRAGON_LEFT:0;
+}
 export type ExitZone = 'reward' | 'recycle';
 // A bead centred exactly on a divider belongs to the outer recovery zone.
 export function classifyFrontExit(x: number, rewardHalfWidth = FRONT_EXIT.rewardHalfWidth): ExitZone {

@@ -1,4 +1,4 @@
-import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, PRIZE_SLOTS_LEFT, PRIZE_SLOTS_RIGHT, OUTLETS, SPLITTER, TWIN_LANE, type PrizeKind } from './config.ts';
+import { PEGS as pegs, FRONT_EXIT, PRIZE_SLOTS, OUTLETS, SPLITTER, TWIN_LANE, TWIN_DRAGON_LEFT, TWIN_DRAGON_RIGHT, type PrizeKind } from './config.ts';
 import type { CoinPusher } from './physics.ts';
 import {isWideGame,type ActiveGame} from './dual-pusher.ts';
 import {loadSlotArtwork,renderSlot,renderCabinetCelebration} from './slot-rendering.ts';
@@ -58,10 +58,10 @@ function drawTrackGates(game:CoinPusher,lane:number,cx:number,lightBase:number,p
    ctx.restore();
  }
 }
-function drawTrackDragon(game:CoinPusher,lane:number,cx:number,side:'left'|'right'){
- const goldOutlet=project(lane,OUTLETS.dragon.y,OUTLETS.dragon.z,cx);
+function drawTrackDragon(game:CoinPusher,dragonX:number,cx:number,side:'left'|'right',pipeBase=dragonX){
+ const goldOutlet=project(dragonX,OUTLETS.dragon.y,OUTLETS.dragon.z,cx);
  for(const [outlet,flip,last] of [[OUTLETS.leftPipe,true,game.lastLeftEject],[OUTLETS.pipe,false,game.lastRightEject]] as const) {
-   const p=project(lane+outlet.x,outlet.y,outlet.z,cx);ctx.save();ctx.translate(p.x,p.y);if(flip)ctx.scale(-1,1);
+   const p=project(pipeBase+outlet.x,outlet.y,outlet.z,cx);ctx.save();ctx.translate(p.x,p.y);if(flip)ctx.scale(-1,1);
    if(game.time-last<.18){ctx.shadowColor='#7bffb5';ctx.shadowBlur=18;}
    ctx.drawImage(pipe,-62,-31,124,62);ctx.restore();
  }
@@ -82,9 +82,9 @@ function paintCabinet(game:CoinPusher){
  ctx.drawImage(machine,0,0,W,1536);
 
  if(twin){
-  // 拉霸中心(offset+512)對齊龍頭 X
-  const leftSlotX=project(-TWIN_LANE,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
-  const rightSlotX=project(TWIN_LANE,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
+  // 拉霸中心對齊朝內挪一格後的龍頭
+  const leftSlotX=project(TWIN_DRAGON_LEFT,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
+  const rightSlotX=project(TWIN_DRAGON_RIGHT,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
   renderSlot(ctx,game,leftSlotX,game.slot);
   renderSlot(ctx,game,rightSlotX,game.slotB);
  }else if(wide){
@@ -102,10 +102,10 @@ function paintCabinet(game:CoinPusher){
 
  const dp=project(game.dropX,10.1,0,cx);sprite(2,dp.x,dp.y,100,76);
  if(twin){
-  drawTrackGates(game,-TWIN_LANE,cx,0,PRIZE_SLOTS_LEFT);
-  drawTrackGates(game,TWIN_LANE,cx,7,PRIZE_SLOTS_RIGHT);
-  drawTrackDragon(game,-TWIN_LANE,cx,'left');
-  drawTrackDragon(game,TWIN_LANE,cx,'right');
+  drawTrackGates(game,-TWIN_LANE,cx,0);
+  drawTrackGates(game,TWIN_LANE,cx,7);
+  drawTrackDragon(game,TWIN_DRAGON_LEFT,cx,'left',-TWIN_LANE);
+  drawTrackDragon(game,TWIN_DRAGON_RIGHT,cx,'right',TWIN_LANE);
  }else{
   drawTrackGates(game,0,cx,0);
   drawTrackDragon(game,0,cx,'left');
