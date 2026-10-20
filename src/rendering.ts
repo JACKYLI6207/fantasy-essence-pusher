@@ -82,9 +82,9 @@ function paintCabinet(game:CoinPusher){
  ctx.drawImage(machine,0,0,W,1536);
 
  if(twin){
-  // 拉霸中心對齊朝內挪一格後的龍頭
-  const leftSlotX=project(TWIN_DRAGON_LEFT,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
-  const rightSlotX=project(TWIN_DRAGON_RIGHT,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
+  // 拉霸維持球道中心對齊；龍頭另朝內挪，不跟著動拉霸
+  const leftSlotX=project(-TWIN_LANE,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
+  const rightSlotX=project(TWIN_LANE,OUTLETS.dragon.y,OUTLETS.dragon.z,cx).x-512;
   renderSlot(ctx,game,leftSlotX,game.slot);
   renderSlot(ctx,game,rightSlotX,game.slotB);
  }else if(wide){
